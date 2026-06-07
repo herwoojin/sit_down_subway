@@ -1,6 +1,8 @@
 [build]
   publish = "."
+  functions = "netlify/functions"
 
+# 서버리스 함수는 항상 /.netlify/functions/* 로 서빙되며 아래 SPA 캐치올보다 우선합니다.
 [[redirects]]
   from = "/*"
   to = "/index.html"

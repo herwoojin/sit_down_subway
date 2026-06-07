@@ -84,7 +84,7 @@
   .carpick button .cg{position:absolute; top:-5px; right:-3px; width:11px; height:11px; border-radius:50%; border:2px solid var(--card);}
   /* 카카오맵식 노선도 위 실시간 열차 선택 */
   .linemap{position:relative; overflow:auto; background:#0b1730; border:1px solid #2f4670; border-radius:14px 14px 0 0;
-    padding:8px; height:440px; min-height:240px; max-height:84vh;}
+    padding:8px; height:520px; min-height:280px; max-height:86vh;}
   .map-resize{height:24px; background:#13233f; border:1px solid #2f4670; border-top:none; border-radius:0 0 14px 14px;
     display:flex; align-items:center; justify-content:center; color:#9fb2d4; font-size:.72em; font-weight:800;
     letter-spacing:1px; cursor:ns-resize; user-select:none; touch-action:none;}
@@ -486,25 +486,32 @@ function speak(text){
 // 서울시 실시간 열차 위치: http://swopenapi.seoul.go.kr/api/subway/{KEY}/json/realtimePosition/0/{N}/{호선명}
 // 응답: realtimePositionList[] = { subwayNm, trainNo, statnNm(현재역), statnTnm(종착역),
 //        updnLine(0상행/1하행), trainSttus(0진입/1도착/2출발/3전역출발), recptnDt ... }
+// 서울시 API 호출 래퍼: 배포(HTTPS)에선 서버리스 프록시를 우선 사용해 혼합콘텐츠/CORS를 회피하고
+// 키를 숨긴다. 프록시가 없으면(로컬 http 개발) 직접 호출로 폴백한다.
+async function seoulApi(path){
+  try {
+    const pr = await fetch(`/.netlify/functions/seoul?path=${encodeURIComponent(path)}`);
+    if (pr.ok) {
+      const j = await pr.json();
+      if (!j || !j.error) return j;   // 함수가 정상 JSON을 주면 사용
+    }
+  } catch(e) { /* 프록시 없음/실패 → 직접 호출로 폴백 */ }
+  // 로컬 개발(http://localhost) 폴백: 파일에 든 데모 키로 직접 호출
+  const r = await fetch(`http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/${path}`);
+  return await r.json();
+}
+
 async function fetchTrainPosition(line){
   let list = [];
   try {
-    const url1 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/1/100/${encodeURIComponent(line)}`;
-    const r1 = await fetch(url1);
-    const d1 = await r1.json();
+    const d1 = await seoulApi(`realtimePosition/1/100/${line}`);
     if(d1.realtimePositionList) list = list.concat(d1.realtimePositionList);
-    
     // API 제한(100대)을 우회하기 위해 추가 페이지 호출
     if(list.length >= 90) {
-      const url2 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/101/200/${encodeURIComponent(line)}`;
-      const r2 = await fetch(url2);
-      const d2 = await r2.json();
+      const d2 = await seoulApi(`realtimePosition/101/200/${line}`);
       if(d2.realtimePositionList) list = list.concat(d2.realtimePositionList);
-      
       if(list.length >= 190) {
-        const url3 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/201/300/${encodeURIComponent(line)}`;
-        const r3 = await fetch(url3);
-        const d3 = await r3.json();
+        const d3 = await seoulApi(`realtimePosition/201/300/${line}`);
         if(d3.realtimePositionList) list = list.concat(d3.realtimePositionList);
       }
     }
@@ -515,9 +522,7 @@ async function fetchTrainPosition(line){
 }
 // 서울시 실시간 도착정보: .../json/realtimeStationArrival/0/{N}/{역명}
 async function fetchArrival(station){
-  const url = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimeStationArrival/0/10/${encodeURIComponent(station)}`;
-  const res = await fetch(url);
-  const data = await res.json();
+  const data = await seoulApi(`realtimeStationArrival/0/10/${station}`);
   return (data.realtimeArrivalList) || [];
 }
 
@@ -781,18 +786,15 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
   // 1) 역 좌표
   const pts=[]; let H; let cols = 1;
   if(isLoop){
-    const padX = 60, padY = 60;
-    const w = W - 2 * padX;
-    const spacing = 75; // 역 간격을 넓혀 네모 형태로 구성
-    const perimeter = n * spacing;
-    let h = (perimeter - 2 * w) / 2;
-    if (h < w) h = w; 
+    // 컨테이너(블록) 크기에 꽉 맞는 세로로 긴 사각 순환선 — 블록을 늘이면 함께 커짐
+    const padX = 64, padY = 56;
+    const w = Math.max(140, W - 2 * padX);
+    const h = Math.max(w * 0.95, Hbox - 2 * padY); // 블록 높이를 채워 위아래로 길게
     H = h + 2 * padY;
-    
-    const len = 2*w + 2*h;
-    for(let i=0;i<n;i++){ 
-      let t = (i / n) + 0.125; 
-      let d = (t % 1.0) * len;
+    const len = 2 * (w + h);
+    for(let i=0;i<n;i++){
+      let frac = (i / n) + 0.125;        // 상단 부근에서 시작
+      let d = (frac % 1.0) * len;
       let x, y, nx, ny, side;
       if (d <= w) { x = padX + d; y = padY; nx = 0; ny = -1; side = 'top'; }
       else if (d <= w + h) { d -= w; x = padX + w; y = padY + d; nx = 1; ny = 0; side = 'right'; }
@@ -901,25 +903,9 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       g.addEventListener('click',()=>selectTrain(t));
     }
     
-    // 열차 이미지 마스크 처리 (train.png)
-    const isFlipped = (moveDir === 'left');
-    const maskScale = isFlipped ? 'scaleX(-1)' : 'none';
-    
-    const fo = svgEl('foreignObject', {x: -wpx/2, y: -13, width: wpx, height: 26});
-    const div = document.createElement('div');
-    div.style.width = '100%';
-    div.style.height = '100%';
-    // 배경색: 선택되면 노란색, 아니면 고유 노선색 (col)
-    const fillVal = sel ? '#ffd54f' : col;
-    div.style.backgroundColor = fillVal;
-    div.style.webkitMask = "url('train.png') center/100% 100% no-repeat";
-    div.style.mask = "url('train.png') center/100% 100% no-repeat";
-    div.style.transform = maskScale;
-    if(sel) {
-      div.style.filter = 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)';
-    }
-    fo.appendChild(div);
-    g.appendChild(fo);
+    // 열차 핀: 잘 보이도록 단색 알약(둥근 사각). 선택 시 노란색 + 흰 테두리.
+    g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
+      fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : '#0b1730', 'stroke-width': sel?2.5:2}));
 
     // 텍스트 대비 색상
     let textCol = '#fff';

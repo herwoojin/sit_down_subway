@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>앉아가요</title>
+<style>
+  :root{
+    --bg:#0e1726; --card:#172238; --line:#2a3a5c; --ink:#f3f6fc; --sub:#9fb2d4;
+    --accent:#2f80ed; --accent-ink:#ffffff; --header-bg:#101a2e;
+    --green:#27ae60; --yellow:#f2c94c; --blue:#2f80ed; --purple:#9b51e0;
+    --gray:#46587c; --danger:#eb5757; --tint:#0f1b30; --fs:1; /* font scale */
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
+  body{max-width:520px; margin:0 auto; padding-bottom:40px; font-size:calc(18px * var(--fs)); line-height:1.5;}
+  header{position:sticky; top:0; z-index:10; background:var(--header-bg); backdrop-filter:blur(6px);
+    padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  header .logo{font-weight:800; font-size:1.25em; letter-spacing:-.5px;}
+  header .logo small{font-weight:600; color:var(--sub); font-size:.6em; margin-left:6px;}
+  .spacer{flex:1;}
+  .credit{background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px;
+    font-weight:700; font-size:.85em; display:flex; align-items:center; gap:6px; white-space:nowrap;}
+  .credit b{color:var(--yellow);}
+  .toolbtn{background:var(--card); border:1px solid var(--line); color:var(--ink); border-radius:12px;
+    width:46px; height:46px; font-size:1.1em; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .toolbtn.on{background:var(--accent); border-color:var(--accent);}
+  main{padding:18px 16px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; margin-bottom:16px;}
+  h2{font-size:1.15em; margin:0 0 10px;}
+  .muted{color:var(--sub); font-size:.9em;}
+  .ctx{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+  .chip{background:var(--tint); border:1px solid var(--line); border-radius:12px; padding:8px 12px; font-weight:700; font-size:.92em;}
+  .chip b{color:var(--accent);}
+  .btn{display:block; width:100%; border:none; border-radius:16px; padding:18px; font-size:1.05em; font-weight:800;
+    cursor:pointer; margin-top:10px; color:#fff;}
+  .btn.primary{background:var(--accent); color:var(--accent-ink);}
+  .btn.green{background:var(--green);}
+  .btn.danger{background:var(--danger);}
+  .btn.ghost{background:transparent; border:2px solid var(--line); color:var(--ink);}
+  .btn:active{transform:scale(.98);}
+  .hide{display:none !important;}
+
+  /* TRAIN CAR */
+  .carwrap{overflow-x:auto; padding:6px 2px 10px;}
+  .car{position:relative; background:#101d33; border:3px solid #34507f; border-radius:34px;
+    padding:14px 16px; min-width:340px;}
+  .car .dir{position:absolute; top:-12px; right:18px; background:var(--accent); color:#fff;
+    font-size:.7em; font-weight:800; padding:3px 10px; border-radius:999px;}
+  .rowlabel{font-size:.72em; color:var(--sub); font-weight:700; margin:2px 2px 6px;}
+  .benchrow{display:flex; align-items:center; gap:6px; margin:4px 0;}
+  .door{width:14px; height:46px; background:repeating-linear-gradient(45deg,#0a1322,#0a1322 4px,#1c2c49 4px,#1c2c49 8px);
+    border-radius:4px; flex:0 0 auto;}
+  .seat{flex:1 1 0; min-width:38px; height:46px; border-radius:10px;
+    border:2px solid #3a5a8c; background:#1b2c49; color:#aebfdd; font-weight:800; font-size:.82em;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;}
+  .seat.priority{border-color:var(--purple); background:#241a3a;}
+  .seat.pregnant{border-color:#f06292; background:#3a1a28; color:#ffc1d6;}
+  .seat.pregnant::after{content:"♥"; position:absolute; font-size:.6em; margin-top:-22px; color:#f06292;}
+  .seat{position:relative;}
+  .seat.free-next{background:var(--green); color:#062; border-color:var(--green); color:#04341c;}
+  .seat.free-soon{background:var(--yellow); color:#5a4600; border-color:var(--yellow);}
+  .seat.mine{background:var(--blue); color:#fff; border-color:#7fb0ff; box-shadow:0 0 0 3px rgba(47,128,237,.35);}
+  .aisle{height:18px; display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:.7em; letter-spacing:3px;}
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; font-size:.8em;}
+  .legend span{display:flex; align-items:center; gap:6px; color:var(--sub);}
+  .dot{width:14px; height:14px; border-radius:4px; display:inline-block;}
+  /* 도면 머리말 */
+  .carmeta{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 2px 8px; font-size:.78em; color:var(--sub); font-weight:700;}
+  .carmeta-line{color:#fff; padding:2px 9px; border-radius:999px; font-weight:800;}
+  .carmeta-sub{opacity:.8;}
+  /* 호차 선택 스트립 */
+  .carpick{display:flex; gap:6px; overflow-x:auto; padding:6px 0 4px; -webkit-overflow-scrolling:touch;}
+  .carpick button{flex:0 0 auto; width:54px; border:2px solid var(--line); background:var(--tint); color:var(--ink);
+    border-radius:12px; padding:8px 4px; font-weight:800; cursor:pointer; font-size:.92em; position:relative;}
+  .carpick button .cn{font-size:1.15em;}
+  .carpick button .cl{display:block; font-size:.6em; color:var(--sub); font-weight:700; margin-top:1px;}
+  .carpick button.sel{border-color:var(--accent); background:var(--accent); color:#fff;}
+  .carpick button.sel .cl{color:#fff; opacity:.85;}
+  .carpick button .cg{position:absolute; top:-5px; right:-3px; width:11px; height:11px; border-radius:50%; border:2px solid var(--card);}
+  /* 카카오맵식 노선도 위 실시간 열차 선택 */
+  .linemap{position:relative; overflow:auto; background:#0b1730; border:1px solid #2f4670; border-radius:14px 14px 0 0;
+    padding:8px; height:440px; min-height:240px; max-height:84vh;}
+  .map-resize{height:24px; background:#13233f; border:1px solid #2f4670; border-top:none; border-radius:0 0 14px 14px;
+    display:flex; align-items:center; justify-content:center; color:#9fb2d4; font-size:.72em; font-weight:800;
+    letter-spacing:1px; cursor:ns-resize; user-select:none; touch-action:none;}
+  .map-resize:active{background:#1a2c4d; color:#cdd8ef;}
+  .linerail-wrap{position:relative;}
+  .linerail{position:relative; height:6px; background:#3a5a8c; border-radius:999px; margin:0 14px;}
+  .linestop{position:absolute; top:-3px; width:11px; height:11px; border-radius:50%; background:#16243f; border:2px solid #5a78aa; transform:translateX(-50%); z-index:1;}
+  .linestop .nm{position:absolute; top:15px; left:50%; transform:translateX(-50%) rotate(35deg); transform-origin:left top;
+    font-size:.6em; color:#9fb2d4; white-space:nowrap; font-weight:700;}
+  .linestop.cur{width:15px; height:15px; top:-5px; box-shadow:0 0 0 4px rgba(91,224,138,.25);}
+  .maptrain{position:absolute; transform:translateX(-50%); cursor:pointer; font-size:.72em; font-weight:800; color:#fff;
+    background:#2f80ed; padding:3px 8px; border-radius:999px; white-space:nowrap; border:2px solid #0b1730; z-index:2; box-shadow:0 2px 5px #0006;}
+  .maptrain.up{bottom:18px;} .maptrain.down{top:18px;}
+  .maptrain.sel{outline:3px solid #ffd54f; transform:translateX(-50%) scale(1.08);}
+  .maphint{font-size:.7em; color:#9fb2d4; margin-top:6px; text-align:center;}
+  /* 편성 길이(총 량수) 선택 */
+  .lenpick{display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 2px;}
+  .lenpick button{flex:1 1 0; min-width:60px; border:2px solid var(--line); background:var(--tint); color:var(--ink);
+    border-radius:12px; padding:10px 6px; font-weight:800; cursor:pointer; font-size:.9em;}
+  .lenpick button.sel{border-color:var(--accent); background:var(--accent); color:#fff;}
+  /* 실시간 시계 배너 */
+  /* 배너 배경이 항상 짙으므로 글자색은 테마와 무관하게 밝게 고정(대비 확보) */
+  .clockbar{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    background:linear-gradient(135deg,#0c1830,#13233f); border:1px solid #2f4670; border-radius:16px;
+    padding:12px 16px; margin-bottom:14px; color:#e8eefc;}
+  .clockbar .now{display:flex; flex-direction:column; line-height:1.05;}
+  .clockbar .now b{font-size:1.9em; font-weight:900; letter-spacing:1px; font-variant-numeric:tabular-nums; color:#ffffff; text-shadow:0 1px 2px #0008;}
+  .clockbar .now small{font-size:.66em; color:#aab9d6; font-weight:700; margin-top:2px;}
+  .clockbar .upd{text-align:right; font-size:.74em; color:#aab9d6; font-weight:700;}
+  .clockbar .upd .live{display:inline-flex; align-items:center; gap:5px; color:#cdd8ef;}
+  .clockbar .upd .pulse{width:8px; height:8px; border-radius:50%; background:#5be08a; display:inline-block; animation:livepulse 1.4s infinite;}
+  .clockbar .upd .pulse.off{background:#e0a45b; animation:none;}
+  .clockbar .upd b{color:#ffffff; font-variant-numeric:tabular-nums;}
+  @keyframes livepulse{0%,100%{opacity:1; transform:scale(1);}50%{opacity:.35; transform:scale(.7);}}
+
+  /* station list */
+  .stationgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;}
+  .stationgrid button{background:var(--tint); border:2px solid var(--line); color:var(--ink); border-radius:14px;
+    padding:16px 10px; font-size:1em; font-weight:800; cursor:pointer;}
+  .stationgrid button.cur{opacity:.45;}
+  .stationgrid button:active{border-color:var(--accent);}
+
+  .chip.pick{cursor:pointer;}
+  .chip.pick.sel{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .trainitem{width:100%; text-align:left; background:var(--tint); border:2px solid var(--line); color:var(--ink);
+    border-radius:14px; padding:14px; margin-bottom:8px; cursor:pointer; font-weight:700;}
+  .trainitem:active,.trainitem.sel{border-color:var(--accent);}
+  .trainitem .t1{font-size:1em;}
+  .trainitem .t2{font-size:.8em; color:var(--sub); font-weight:600; margin-top:2px;}
+  .livebadge{display:inline-block; font-size:.72em; font-weight:800; padding:2px 8px; border-radius:999px; margin-left:6px;}
+  .livebadge.on{background:#1d4030; color:#5be08a;}
+  .livebadge.off{background:#402a1d; color:#e0a45b;}
+  /* themes */
+  .themegrid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .themebtn{display:flex; align-items:center; gap:8px; background:var(--tint); border:2px solid var(--line);
+    color:var(--ink); border-radius:14px; padding:14px; font-weight:800; font-size:1em; cursor:pointer;}
+  .themebtn.sel{border-color:var(--accent);}
+  .themebtn .sw{width:22px; height:22px; border-radius:6px; display:inline-block; border:1px solid #0003;}
+  /* login */
+  #profileBtn{font-weight:800; overflow:hidden; width:auto; min-width:46px; padding:0 12px; font-size:.82em; gap:6px;}
+  #profileBtn img{width:24px;height:24px;object-fit:cover;border-radius:50%;}
+  .login-hero{text-align:center; padding:14px 0;}
+  .login-hero .emoji{font-size:2.6em;}
+  .gbtn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:none; cursor:pointer;
+    background:#fff; color:#1f1f1f; border-radius:16px; padding:16px; font-size:1.05em; font-weight:800; margin-top:10px;
+    box-shadow:0 1px 4px #0003;}
+  .gbtn img{width:22px;height:22px;}
+  /* congestion board */
+  .cglegend{display:flex; gap:12px; flex-wrap:wrap; font-size:.82em; color:var(--sub); margin:6px 0 14px;}
+  .cgcars{display:flex; gap:6px; align-items:flex-end; overflow-x:auto; padding:6px 0;}
+  .cgcar{flex:0 0 auto; width:38px; text-align:center;}
+  .cgbar{height:54px; border-radius:8px 8px 4px 4px; display:flex; align-items:flex-end; justify-content:center;
+    color:#fff; font-size:.7em; font-weight:800; padding-bottom:3px;}
+  .cgcar .lbl{font-size:.72em; color:var(--sub); margin-top:4px; font-weight:700;}
+  .cgstrip{display:flex; gap:4px; overflow-x:auto; padding:8px 0;}
+  .cgstation{flex:0 0 auto; width:52px; text-align:center;}
+  .cgstation .pip{height:30px; border-radius:6px; margin-bottom:4px;}
+  .cgstation .nm{font-size:.66em; color:var(--sub); font-weight:700; line-height:1.15; word-break:keep-all;}
+  .lv0{background:#27ae60;} .lv1{background:#8bbf3a;} .lv2{background:#f2c94c; color:#5a4600;}
+  .lv3{background:#f2994a;} .lv4{background:#eb5757;}
+  .big-status{text-align:center; padding:10px 0;}
+  .big-status .emoji{font-size:2.4em;}
+  .reward{background:linear-gradient(135deg,#163a2a,#1d2f50); border:1px solid #2f6b4a;}
+  .reward .amt{font-size:2em; font-weight:900; color:var(--yellow);}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000d; color:#fff;
+    padding:12px 18px; border-radius:999px; font-weight:700; z-index:50; max-width:90%; text-align:center;}
+  .stepbar{display:flex; gap:6px; margin-bottom:14px;}
+  .stepbar i{flex:1; height:6px; border-radius:999px; background:var(--line);}
+  .stepbar i.on{background:var(--accent);}
+  .voice-help{font-size:.82em; color:var(--sub); margin-top:6px;}
+  .footer-note{font-size:.78em; color:var(--sub); text-align:center; margin-top:18px; line-height:1.6;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">앉아가요<small>편하게 가요</small></div>
+  <div class="spacer"></div>
+  <div class="credit">🪙 <b id="creditVal">0</b></div>
+  <button class="toolbtn" id="boardBtn" title="노선도·혼잡도">🗺️</button>
+  <button class="toolbtn" id="themeBtn" title="테마">🎨</button>
+  <button class="toolbtn" id="fontBtn" title="글씨 크기">가</button>
+  <button class="toolbtn" id="voiceBtn" title="음성 안내">🔊</button>
+  <button class="toolbtn hide" id="profileBtn" title="로그아웃"><span id="profileInit">·</span></button>
+</header>
+
+<!-- 테마 선택 패널 -->
+<div id="themePanel" class="card hide" style="margin:12px 16px 0">
+  <h2 style="margin:0 0 8px">🎨 테마 선택</h2>
+  <div class="themegrid">
+    <button class="themebtn" data-theme="kakao"><span class="sw" style="background:#FEE500"></span>카톡</button>
+    <button class="themebtn" data-theme="naver"><span class="sw" style="background:#03C75A"></span>네이버</button>
+    <button class="themebtn" data-theme="kurly"><span class="sw" style="background:#5F0080"></span>컬리</button>
+    <button class="themebtn" data-theme="custom"><span class="sw" style="background:linear-gradient(45deg,#2f80ed,#eb5757)"></span>커스텀</button>
+  </div>
+  <div id="customRow" class="hide" style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+    <label style="font-weight:700">강조색 <input type="color" id="customColor" value="#2f80ed" style="vertical-align:middle"></label>
+    <label style="font-weight:700">바탕
+      <select id="customBase" style="font-size:1em;padding:6px;border-radius:8px">
+        <option value="dark">어둡게</option><option value="light">밝게</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<main>
+  <!-- STEP LOGIN -->
+  <section id="stepLogin" class="card hide">
+    <div class="login-hero">
+      <div class="emoji">🚇</div>
+      <h2>앉아가요에 오신 걸 환영해요</h2>
+      <p class="muted">지하철 빈자리를 함께 나누고, 크레딧도 쌓아요.<br>구글 계정으로 로그인하면 크레딧이 저장돼요.</p>
+    </div>
+    <button class="gbtn" id="googleLogin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">구글로 로그인
+    </button>
+    <button class="btn ghost" id="guestLogin">로그인 없이 둘러보기</button>
+    <p class="voice-help">로그인은 Firebase 인증을 사용합니다. (설정 전에는 데모로 동작)</p>
+  </section>
+
+  <div class="stepbar" id="stepbar"><i class="on"></i><i></i><i></i><i></i></div>
+
+  <!-- STEP 0: 자동 인식 -->
+  <section id="step0" class="card">
+    <h2>📍 지금 탄 열차를 찾는 중…</h2>
+    <p class="muted" id="detectMsg">실시간 열차 위치 정보를 불러오고 있어요.</p>
+
+    <div id="linePick">
+      <p class="muted" style="margin:10px 0 4px">내가 탄 노선</p>
+      <div class="ctx" id="lineChips"></div>
+    </div>
+
+    <!-- 실시간 신뢰도 배너: 큰 현재시각 + 데이터 업데이트 시각 -->
+    <div class="clockbar" id="clockBarContainer" style="cursor:pointer" title="클릭하여 새로고침">
+      <div class="now"><b id="nowClock">--:--:--</b><small id="nowDate">실시간 서울 교통정보</small></div>
+      <div class="upd">
+        <div class="live"><span class="pulse off" id="livePulse"></span><span id="liveLabel">연결 대기</span></div>
+        <div>데이터 업데이트<br><b id="updClock">--:--:--</b></div>
+      </div>
+    </div>
+
+    <!-- 카카오맵 초정밀 지하철식 지도 선택 -->
+    <div id="trainMapWrap" class="hide" style="margin-top:14px">
+      <p class="muted" style="margin:0 0 6px">🗺️ 지도에서 내 열차를 골라주세요 — <b>움직이는 열차를 누르면 자동 설정</b>돼요</p>
+      <div class="linemap" id="lineMap"></div>
+      <div class="map-resize" id="mapResize" title="위아래로 드래그하여 지도 크기 조절">⌃⌄ 드래그해서 지도 크기 조절 ⌃⌄</div>
+      <p class="maphint" id="mapHint"></p>
+      <button class="btn ghost" id="openKakaoLive" style="margin-top:8px">📍 카카오맵 초정밀 지하철에서 위치 확인</button>
+      <button class="btn ghost" id="toggleTrainList" style="margin-top:8px">📋 목록으로 고르기</button>
+    </div>
+
+    <div id="trainList" class="hide" style="margin-top:14px">
+      <p class="muted" style="margin:0 0 6px">실시간 운행 열차 — 내가 탄 열차를 골라주세요</p>
+      <div id="trainItems"></div>
+    </div>
+
+    <div id="carPickWrap" class="hide" style="margin-top:14px">
+      <p class="muted" style="margin:0 0 6px">🚆 이 열차는 몇 칸인가요? <span id="lenHint" style="font-size:.85em">실시간으로 알 수 없어 <b>기본 10칸</b></span></p>
+      <div class="lenpick" id="lenPick"></div>
+    </div>
+
+    <div class="ctx" id="ctxChips" style="margin-top:14px"></div>
+    <button class="btn primary hide" id="confirmCtx">맞아요, 시작할게요</button>
+  </section>
+
+  <!-- STEP MODE: 모드 선택 -->
+  <section id="stepMode" class="card hide">
+    <h2>지금 어떤 상황이세요?</h2>
+    <p class="muted" id="modeCtxLabel"></p>
+    <button class="btn primary" id="modeView" style="text-align:left">🚶 아직 안 탔어요 · 서서 가요<br>
+      <span style="font-weight:600;font-size:.82em;opacity:.9">전체 칸 중 빈자리 많은 칸을 찾아 그 위치로 이동해요</span></button>
+    <button class="btn green" id="modeJoin" style="text-align:left">🪑 이미 앉았어요<br>
+      <span style="font-weight:600;font-size:.82em;opacity:.9">내 호차·자리·내릴 역만 기록하고 크레딧을 받아요</span></button>
+  </section>
+
+  <!-- STEP FLEET: 전체 편성 칸별 빈자리 현황 (서 있는/타려는 사람용) -->
+  <section id="stepFleet" class="card hide">
+    <h2>🚉 전체 편성 빈자리 현황</h2>
+    <p class="muted" id="fleetCtx"></p>
+    <div id="fleetBest" class="reward" style="border-radius:14px;padding:14px;margin:0 0 12px"></div>
+    <div class="cglegend"><span>🟩 10석 이상</span><span>🟨 5~9석</span><span>🟧 1~4석</span><span>🟥 0석 (만석)</span></div>
+    <div class="cgcars" id="fleetCars"></div>
+    <p class="muted" style="font-size:.85em">진행방향 →. 칸을 누르면 그 칸의 <b>자리 배치</b>를 자세히 볼 수 있어요.</p>
+    <button class="btn green" id="fleetRefresh">🔄 새로고침</button>
+    <button class="btn ghost" id="fleetToJoin">🪑 이미 앉았어요 (자리 기록)</button>
+    <button class="btn ghost" id="fleetHome">🏠 처음으로</button>
+  </section>
+
+  <!-- STEP 1: 좌석 선택 / 뷰어 -->
+  <section id="step1" class="card hide">
+    <h2 id="step1Title">🚇 내가 앉은 자리를 눌러주세요</h2>
+    <p class="muted" id="seatCtxLabel"></p>
+    <div id="seatCarPick" class="hide" style="margin:0 0 12px">
+      <p class="muted" style="margin:0 0 6px">🚃 어느 칸에 타셨어요? <span id="carPickHint" style="font-size:.85em"></span></p>
+      <div class="carpick" id="carPick"></div>
+    </div>
+    <div id="viewerSummary" class="card hide" style="margin:0 0 12px;background:#0f1b30;padding:14px">
+      <b id="viewerCount"></b>
+      <p class="muted" id="viewerHint" style="margin:6px 0 0"></p>
+    </div>
+    <div class="carwrap">
+      <div class="car" id="car"><div class="dir">진행 방향 →</div></div>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:#1b2c49;border:2px solid #3a5a8c"></i>빈자리 정보 없음</span>
+      <span><i class="dot" style="background:var(--green)"></i>다음 역에서 비움</span>
+      <span><i class="dot" style="background:var(--yellow)"></i>2~3정거장 후</span>
+      <span><i class="dot" style="background:var(--blue)"></i>내 자리</span>
+      <span><i class="dot" style="background:#241a3a;border:2px solid var(--purple)"></i>교통약자석</span>
+      <span><i class="dot" style="background:#3a1a28;border:2px solid #f06292"></i>임산부 배려석</span>
+    </div>
+    <button class="btn danger" id="couldNotSit">앉지 못했어요</button>
+    <button class="btn green hide" id="viewerRefresh">🔄 새로고침</button>
+    <button class="btn ghost hide" id="viewerBack">← 전체 칸 현황으로</button>
+    <button class="btn ghost hide" id="viewerToJoin">🪑 이미 앉았어요 (자리 기록)</button>
+    <p class="voice-help" id="step1Help">자리에 앉으셨다면 그 자리를 한 번 눌러주세요.</p>
+  </section>
+
+  <!-- STEP 2: 하차역 선택 -->
+  <section id="step2" class="card hide">
+    <h2>🏁 어느 역에서 내리세요?</h2>
+    <p class="muted" id="seatPicked"></p>
+    
+    <div id="exitMapWrap" style="margin-top:14px; position:relative;">
+      <p class="muted" style="margin:0 0 6px">🗺️ 노선도에서 <b>내릴 역</b>을 눌러주세요</p>
+      <div class="linemap" id="exitMap"></div>
+      <div class="map-resize" id="exitMapResize" title="위아래로 드래그하여 지도 크기 조절">⌃⌄ 드래그해서 지도 크기 조절 ⌃⌄</div>
+    </div>
+    
+    <p class="muted" style="margin:16px 0 6px; text-align:center;">또는 아래 목록에서 선택하세요</p>
+    <div class="stationgrid" id="stationGrid"></div>
+  </section>
+
+  <!-- STEP 3: 완료/보상 -->
+  <section id="step3" class="card reward hide">
+    <div class="big-status">
+      <div class="emoji">🎉</div>
+      <h2 id="doneTitle">공유 완료!</h2>
+      <p class="muted" id="doneDesc"></p>
+      <div class="amt" id="rewardAmt">+20 🪙</div>
+      <p class="muted">곧 일어나실 때 이 자리를 기다리던 분께도 기본 크레딧이 함께 적립돼요.</p>
+    </div>
+    <button class="btn primary" id="restart">처음으로</button>
+  </section>
+
+  <!-- 앉지 못함 결과 -->
+  <section id="stepNo" class="card hide">
+    <div class="big-status">
+      <div class="emoji">🙏</div>
+      <h2>앉지 못했어요</h2>
+      <p class="muted">괜찮아요. 다른 분들이 곧 비울 자리를 알려드릴게요.<br>아래에서 곧 비는 자리를 확인해 보세요.</p>
+    </div>
+    <button class="btn green" id="showFree">곧 비는 자리 보기</button>
+    <button class="btn ghost" id="restart2">처음으로</button>
+  </section>
+
+  <!-- STEP BOARD: 노선도 + 빈자리 현황 -->
+  <section id="stepBoard" class="card hide">
+    <h2>🗺️ 노선도 · 실시간 빈자리 현황</h2>
+    <p class="muted" id="boardCtx"></p>
+    <button class="btn primary" id="openKakaoMap">카카오 지하철 노선도 열기</button>
+
+    <h2 style="margin-top:18px; font-size:1.05em">🚃 현재 열차 칸별 빈자리</h2>
+    <div class="cglegend">
+      <span>🟩 10석 이상</span><span>🟨 5~9석</span><span>🟧 1~4석</span><span>🟥 0석 (만석)</span>
+    </div>
+    <div class="cgcars" id="cgCars"></div>
+    <p class="muted" id="cgCarHint" style="font-size:.85em"></p>
+
+    <h2 style="margin-top:18px; font-size:1.05em">🛤️ 노선 역별 빈자리</h2>
+    <div class="cgstrip" id="cgStrip"></div>
+
+    <button class="btn green" id="boardRefresh">🔄 새로고침</button>
+    <button class="btn primary" id="boardHome">🏠 홈으로</button>
+    <button class="btn ghost" id="boardBack">이전 화면으로</button>
+    <p class="voice-help">빈자리 정보는 데모 값입니다. 운영 시 TMAP/SK 칸 혼잡도 및 승객 공유 데이터로 실시간 연동합니다.</p>
+  </section>
+
+  <p class="footer-note">
+    ※ 이 서비스는 좌석을 <b>예약·점유하지 않는 참고용</b> 정보 공유입니다.<br>
+    실시간 열차 위치는 서울시 공개 API를 사용하며, 좌석 정보는 승객들이 직접 공유합니다.
+  </p>
+</main>
+
+<script>
+/* =========================================================================
+   앉아가요 프로토타입
+   - 실제 서울시 지하철 실시간 API 연동 코드 포함(인증키 필요)
+   - 키가 없으면 SAMPLE 데이터로 자동 폴백되어 그대로 동작합니다.
+   ========================================================================= */
+
+// ---- 0. 상태 ----
+const state = {
+  // 서울시 지하철 실시간 인증키 (사용자 제공). 운영 시에는 서버 프록시 뒤에 숨겨야 함.
+  apiKey: '4753464b6a6865723233644f536d57',
+  line: '2호선',
+  trainNo: '',
+  trackedTrain: '',        // 차량번호로 매칭·추적 중인 열차
+  totalCars: 10,           // 편성 길이(총 량수). 실시간으로 알 수 없어 기본 10칸, 사용자가 변경 가능
+  car: 5,                  // 내가 탄 호차
+  curStation: '강남',
+  destStation: '',         // 종착역(statnTnm)
+  trainSttus: '',          // 0진입 1도착 2출발 3전역출발
+  updnLine: '',            // 0 상행/내선, 1 하행/외선
+  mode: 'participate',     // 'participate' | 'viewer'
+  mySeat: null,
+  exitStation: null,
+  live: false,             // 실시간 데이터로 동작 중인지
+  credits: Number(localStorage.getItem('ag_credit')||0),
+  voice: false,
+  fontStep: 0,
+  prevTrainPositions: {},  // 이전 열차 위치 추적용 (trainNo -> { statnNm, updnLine })
+  sampleTrainsList: null,  // 움직이는 샘플 열차 시뮬레이션용
+  trainInterval: null      // 15초 폴링 타이머 ID
+};
+const fontScales = [1, 1.25, 1.55];
+const LINES = ['1호선','2호선','3호선','4호선','5호선','6호선','7호선','8호선','9호선'];
+
+// 노선 메타: 칸 수(전국 도시철도 열차 칸 수 총정리 기준) + 공식 노선색 + 좌석 형식
+// 좌석형식 layout: 측면 1줄 구성 = [약자석3]·문·[일반7]·문·[일반7]·문·[일반7]·문·[약자석3]
+//   - 표준 대형 전동차 1칸 = 54석(일반 42 + 교통약자 12), 문 4개/측면
+//   - 신형(6인석) 노선은 일반석 묶음이 7→6 (좌석 폭이 넓어진 최신 차량)
+const LINE_META = {
+  '1호선': {cars:10, color:'#0052A4', form:'7'},
+  '2호선': {cars:10, color:'#009D3E', form:'7'},
+  '3호선': {cars:10, color:'#EF7C1C', form:'6'}, // 3호선 신형(341000호대) 6인석
+  '4호선': {cars:10, color:'#00A5DE', form:'7'},
+  '5호선': {cars:8,  color:'#996CAC', form:'7'},
+  '6호선': {cars:8,  color:'#CD7C2F', form:'7'},
+  '7호선': {cars:8,  color:'#747F00', form:'6'}, // 7호선 신형 6인석
+  '8호선': {cars:6,  color:'#E6186C', form:'7'},
+  '9호선': {cars:6,  color:'#BDB092', form:'6'}, // 9호선 6인석
+};
+function lineCars(line){ return (LINE_META[line]||{}).cars || 10; }
+function lineColor(line){ return (LINE_META[line]||{}).color || '#2f80ed'; }
+// 측면 1줄 좌석 섹션 정의 (실제 도면 기반). g=일반석 묶음 길이.
+function sideSections(line){
+  const g = (LINE_META[line]||{}).form==='6' ? 6 : 7;
+  return [
+    {door:1},
+    {seats:3, type:'priority'},   // 모서리 교통약자석
+    {door:1},
+    {seats:g, type:'normal', preg:'head'}, // 문 옆 첫 칸 = 임산부 배려석
+    {door:1},
+    {seats:g, type:'normal'},
+    {door:1},
+    {seats:g, type:'normal', preg:'tail'}, // 문 옆 끝 칸 = 임산부 배려석
+    {door:1},
+    {seats:3, type:'priority'},   // 모서리 교통약자석
+    {door:1},
+  ];
+}
+
+// 노선별 정차역 순서(데모: 2호선 본선만 수록). 다른 노선은 실시간 역명만 표시.
+const STATION_ORDER = {
+  '1호선': ['소요산','동두천','보산','동두천중앙','지행','덕정','덕계','양주','녹양','가능','의정부','회룡','망월사','도봉산','도봉','방학','창동','녹천','월계','광운대','석계','신이문','외대앞','회기','청량리','제기동','신설동','동묘앞','동대문','종로5가','종로3가','종각','시청','서울','남영','용산','노량진','대방','신길','영등포','신도림','구로','구일','개봉','오류동','온수','역곡','소사','부천','중동','송내','부개','부평','백운','동암','간석','주안','도화','제물포','도원','동인천','인천'],
+  '2호선': ['시청','을지로입구','을지로3가','을지로4가','동대문역사문화공원','신당','상왕십리','왕십리','한양대','뚝섬','성수','건대입구','구의','강변','잠실나루','잠실','잠실새내','종합운동장','삼성','선릉','역삼','강남','교대','서초','방배','사당','낙성대','서울대입구','봉천','신림','신대방','구로디지털단지','대림','신도림','문래','영등포구청','당산','합정','홍대입구','신촌','이대','아현','충정로'],
+  '3호선': ['대화','주엽','정발산','마두','백석','대곡','화정','원당','원흥','삼송','지축','구파발','연신내','불광','녹번','홍제','무악재','독립문','경복궁','안국','종로3가','을지로3가','충무로','동대입구','약수','금호','옥수','압구정','신사','잠원','고속터미널','교대','남부터미널','양재','매봉','도곡','대치','학여울','대청','일원','수서','가락시장','경찰병원','오금'],
+  '4호선': ['진접','오남','별내별가람','당고개','상계','노원','창동','쌍문','수유','미아','미아사거리','길음','성신여대입구','한성대입구','혜화','동대문','동대문역사문화공원','충무로','명동','회현','서울','숙대입구','삼각지','신용산','이촌','동작','총신대입구','사당','남태령','선바위','경마공원','대공원','과천','정부과천청사','인덕원','평촌','범계','금정','산본','수리산','대야미','반월','상록수','한대앞','중앙','고잔','초지','안산','신길온천','정왕','오이도'],
+  '5호선': ['방화','개화산','김포공항','송정','마곡','발산','우장산','화곡','까치산','신정','목동','오목교','양평','영등포구청','영등포시장','신길','여의도','여의나루','마포','공덕','애오개','충정로','서대문','광화문','종로3가','을지로4가','동대문역사문화공원','청구','신금호','행당','왕십리','마장','답십리','장한평','군자','아차산','광나루','천호','강동','길동','굽은다리','명일','고덕','상일동','강일','미사','하남풍산','하남시청','하남검단산'],
+  '6호선': ['응암','역촌','불광','독바위','연신내','구산','새절','증산','디지털미디어시티','월드컵경기장','마포구청','망원','합정','상수','광흥창','대흥','공덕','효창공원앞','삼각지','녹사평','이태원','한강진','버티고개','약수','청구','신당','동묘앞','창신','보문','안암','고려대','월곡','상월곡','돌곶이','석계','태릉입구','화랑대','봉화산','신내'],
+  '7호선': ['장암','도봉산','수락산','마들','노원','중계','하계','공릉','태릉입구','먹골','중화','상봉','면목','사가정','용마산','중곡','군자','어린이대공원','건대입구','뚝섬유원지','청담','강남구청','학동','논현','반포','고속터미널','내방','총신대입구','남성','숭실대입구','상도','장승배기','신대방삼거리','보라매','신풍','대림','남구로','가산디지털단지','철산','광명사거리','천왕','온수','까치울','부천종합운동장','춘의','신중동','부천시청','상동','삼산체육관','굴포천','부평구청','산곡','석남'],
+  '8호선': ['별내','다산','동구릉','구리','장자호수공원','암사역사공원','암사','천호','강동구청','몽촌토성','잠실','석촌','송파','가락시장','문정','장지','복정','남위례','산성','남한산성입구','단대오거리','신흥','수진','모란'],
+  '9호선': ['개화','김포공항','공항시장','신방화','마곡나루','양천향교','가양','증미','등촌','염창','신목동','선유도','당산','국회의사당','여의도','샛강','노량진','노들','흑석','동작','구반포','신반포','고속터미널','사평','신논현','언주','선정릉','삼성중앙','봉은사','종합운동장','삼전','석촌고분','석촌','송파나루','한성백제','올림픽공원','둔촌오륜','중앙보훈병원']
+};
+const STTUS = {'0':'진입 중','1':'도착','2':'출발','3':'전역 출발'};
+
+// ---- 1. 음성 안내 (Web Speech API) ----
+function speak(text){
+  if(!state.voice) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='ko-KR'; u.rate=0.95; u.pitch=1;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+// ---- 2. 실제 API 연동 ----
+// 서울시 실시간 열차 위치: http://swopenapi.seoul.go.kr/api/subway/{KEY}/json/realtimePosition/0/{N}/{호선명}
+// 응답: realtimePositionList[] = { subwayNm, trainNo, statnNm(현재역), statnTnm(종착역),
+//        updnLine(0상행/1하행), trainSttus(0진입/1도착/2출발/3전역출발), recptnDt ... }
+async function fetchTrainPosition(line){
+  let list = [];
+  try {
+    const url1 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/1/100/${encodeURIComponent(line)}`;
+    const r1 = await fetch(url1);
+    const d1 = await r1.json();
+    if(d1.realtimePositionList) list = list.concat(d1.realtimePositionList);
+    
+    // API 제한(100대)을 우회하기 위해 추가 페이지 호출
+    if(list.length >= 90) {
+      const url2 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/101/200/${encodeURIComponent(line)}`;
+      const r2 = await fetch(url2);
+      const d2 = await r2.json();
+      if(d2.realtimePositionList) list = list.concat(d2.realtimePositionList);
+      
+      if(list.length >= 190) {
+        const url3 = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimePosition/201/300/${encodeURIComponent(line)}`;
+        const r3 = await fetch(url3);
+        const d3 = await r3.json();
+        if(d3.realtimePositionList) list = list.concat(d3.realtimePositionList);
+      }
+    }
+  } catch(e) {
+    if(list.length === 0) throw e;
+  }
+  return list;
+}
+// 서울시 실시간 도착정보: .../json/realtimeStationArrival/0/{N}/{역명}
+async function fetchArrival(station){
+  const url = `http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/realtimeStationArrival/0/10/${encodeURIComponent(station)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return (data.realtimeArrivalList) || [];
+}
+
+// ---- 3. 노선 선택 + 실시간 열차 목록 ----
+function renderLineChips(){
+  const box=document.getElementById('lineChips'); box.innerHTML='';
+  LINES.forEach(l=>{
+    const c=document.createElement('div');
+    c.className='chip pick'+(l===state.line?' sel':''); c.textContent=l;
+    c.addEventListener('click',()=>{
+      state.line=l;
+      renderLineChips();
+      state.sampleTrainsList = null;
+      loadTrains(false);
+    });
+    box.appendChild(c);
+  });
+}
+
+function getSampleTrains(line) {
+  const order = STATION_ORDER[line] || ['강남', '역삼', '선릉', '삼성'];
+  
+  if (!state.sampleTrainsList || state.sampleTrainsList.line !== line) {
+    state.sampleTrainsList = {
+      line: line,
+      trains: [
+        { trainNo: '3012', statnNm: '강남', statnTnm: '성수', updnLine: '0', trainSttus: '1' },
+        { trainNo: '3018', statnNm: '선릉', statnTnm: '신도림', updnLine: '1', trainSttus: '2' },
+        { trainNo: '3024', statnNm: '삼성', statnTnm: '성수', updnLine: '0', trainSttus: '0' },
+      ]
+    };
+  } else {
+    // Simulate movement
+    state.sampleTrainsList.trains.forEach(t => {
+      const curIdx = order.indexOf(t.statnNm);
+      if (curIdx >= 0) {
+        let nextIdx;
+        if (t.updnLine === '0') {
+          nextIdx = (curIdx + 1) % order.length;
+        } else {
+          nextIdx = (curIdx - 1 + order.length) % order.length;
+        }
+        t.statnNm = order[nextIdx];
+        t.trainSttus = String(Math.floor(Math.random() * 4));
+      }
+    });
+  }
+  return state.sampleTrainsList.trains;
+}
+
+async function loadTrains(silent = false){
+  const msg=document.getElementById('detectMsg');
+  const wrap=document.getElementById('trainList');
+  const items=document.getElementById('trainItems');
+  
+  if (!silent) {
+    document.getElementById('ctxChips').innerHTML='';
+    document.getElementById('confirmCtx').classList.add('hide');
+    document.getElementById('carPickWrap').classList.add('hide');
+    document.getElementById('trainMapWrap').classList.add('hide');
+    msg.textContent=`${state.line} 실시간 열차를 불러오는 중…`;
+    items.innerHTML=''; wrap.classList.remove('hide');
+  }
+
+  let list=[];
+  try{
+    list = await fetchTrainPosition(state.line);
+    
+    // API가 2호선으로 준 데이터는 일단 모두 신뢰하되, 빈 데이터만 제거
+    list = list.filter(t => t.trainNo);
+
+    // 심야/주말 종착역에 따라 앞자리가 4, 6, 8 등으로 바뀌는 특수 열차번호를 사용자 혼란 방지를 위해 해당 노선번호로 통일 (UX 개선)
+    const lineNum = state.line.replace('호선', '');
+    list.forEach(t => {
+      let tn = String(t.trainNo).replace(/[^0-9]/g, '');
+      if (tn.length >= 4 && tn.charAt(0) !== lineNum && /^[1-9]$/.test(lineNum)) {
+        t.trainNo = lineNum + tn.substring(tn.length - 3);
+      }
+    });
+
+    state.live = list.length>0;
+  }catch(e){
+    state.live=false;
+    if (!silent) {
+      msg.innerHTML=`실시간 연결이 막혔어요 <span class="livebadge off">샘플</span><br>
+        <span style="font-size:.82em">브라우저 보안(CORS/혼합콘텐츠)으로 직접 호출이 차단될 수 있어요. 운영 시 서버 프록시가 필요합니다. 지금은 샘플로 보여드릴게요.</span>`;
+    }
+  }
+
+  if(!list.length){
+    state.live=false;
+    if (!silent && !msg.textContent.includes('샘플')) {
+      msg.innerHTML=`실시간 운행 열차가 없어요(막차 이후 등) <span class="livebadge off">샘플</span>`;
+    }
+    list = getSampleTrains(state.line);
+  } else {
+    if (!silent) {
+      msg.innerHTML=`실시간으로 ${list.length}대의 열차를 찾았어요 <span class="livebadge on">LIVE</span>`;
+    }
+  }
+
+  setUpdateStamp(state.live, list[0] && list[0].recptnDt);
+
+  // Process list to create ghost trace
+  const renderList = [];
+  list.forEach(t => {
+    const prev = state.prevTrainPositions[t.trainNo];
+    const cleanCur = (t.statnNm || '').replace(/역$/, '');
+    if (prev && prev.statnNm !== cleanCur) {
+      // Add ghost train for the previous position
+      renderList.push({
+        ...t,
+        statnNm: prev.statnNm,
+        isGhost: true
+      });
+    }
+    // Update tracker
+    state.prevTrainPositions[t.trainNo] = {
+      statnNm: cleanCur,
+      updnLine: t.updnLine,
+      statnTnm: (t.statnTnm || '').replace(/역$/, '')
+    };
+    renderList.push(t);
+  });
+
+  items.innerHTML = '';
+  list.slice(0,12).forEach(t=>{
+    const cur=(t.statnNm||'').replace(/역$/,'');
+    const dest=(t.statnTnm||'').replace(/역$/,'');
+    const st=STTUS[t.trainSttus]||'';
+    const b=document.createElement('button'); b.className='trainitem';
+    b.dataset.train=t.trainNo;
+    b.innerHTML=`<div class="t1">🚇 ${t.trainNo}열차 · ${dest}행</div>
+      <div class="t2">현재 ${cur} ${st?('('+st+')'):''} · ${t.updnLine==='0'?'상행/내선':'하행/외선'}</div>`;
+    b.addEventListener('click',()=>pickTrain(t,b));
+    items.appendChild(b);
+  });
+  
+  renderTrainMap(renderList);
+  
+  if (!silent) {
+    document.getElementById('trainList').classList.add('hide');
+    speak(`${state.line} 열차 목록이에요. 지도에서 내가 탄 열차를 골라주세요.`);
+  }
+}
+
+// 차량번호(trainNo)로 열차를 확정·매칭. 목록/지도 어느 쪽에서 골라도 동일하게 동작.
+function selectTrain(t){
+  state.trainNo=t.trainNo;
+  state.trackedTrain=t.trainNo;
+  state.curStation=(t.statnNm||state.curStation).replace(/역$/,'');
+  state.destStation=(t.statnTnm||'').replace(/역$/,'');
+  state.updnLine=t.updnLine; state.trainSttus=t.trainSttus;
+  // 목록·지도 동시 하이라이트 (차량번호 기준 매칭)
+  document.querySelectorAll('.trainitem').forEach(x=>x.classList.toggle('sel', x.dataset.train===String(t.trainNo)));
+  document.querySelectorAll('.maptrain').forEach(x=>x.classList.toggle('sel', x.dataset.train===String(t.trainNo)));
+  renderLenPick();
+  renderCarPick();
+  renderCtx();
+}
+function pickTrain(t,el){ selectTrain(t); }
+
+// 편성 길이(총 량수): 실시간으로 알 수 없으므로 기본 10칸, 사용자가 선택
+const CAR_LEN_OPTIONS=[4,6,8,10];
+function carCount(){ return state.totalCars || 10; }
+function renderLenPick(){
+  const box=document.getElementById('lenPick'); if(!box) return;
+  box.innerHTML='';
+  const typical=lineCars(state.line);
+  CAR_LEN_OPTIONS.forEach(n=>{
+    const b=document.createElement('button');
+    if(n===carCount()) b.classList.add('sel');
+    b.innerHTML=`${n}칸`+(n===typical?'<br><span style="font-size:.7em;opacity:.8">보통</span>':'');
+    b.addEventListener('click',()=>{
+      state.totalCars=n;
+      if(Number(state.car)>n) state.car=Math.ceil(n/2);
+      renderLenPick(); renderCarPick(); renderCtx();
+    });
+    box.appendChild(b);
+  });
+  document.getElementById('lenHint').innerHTML =
+    `실시간으로 알 수 없어 <b>기본 10칸</b> · ${state.line}은 보통 <b>${typical}칸</b>`;
+  document.getElementById('carPickWrap').classList.remove('hide');
+}
+
+// 편성 길이에 맞춰 호차 선택 스트립 생성 (step1 상단 '내 호차' 선택용)
+function renderCarPick(){
+  const box=document.getElementById('carPick');
+  if(!box) return;
+  const n=carCount();
+  if(Number(state.car)>n) state.car=Math.ceil(n/2); // 칸 수 초과 시 보정
+  box.innerHTML='';
+  const lvColors=['#27ae60','#8bbf3a','#f2c94c','#f2994a','#eb5757'];
+  let best=1,bestLv=9;
+  for(let i=1;i<=n;i++){
+    const lv=lvClass(); if(lv<bestLv){bestLv=lv;best=i;}
+    const b=document.createElement('button');
+    if(String(i)===String(state.car)) b.classList.add('sel');
+    b.innerHTML=`<span class="cn">${i}</span><span class="cl">호차</span>`
+      +`<span class="cg" style="background:${lvColors[lv]}" title="혼잡도"></span>`;
+    b.addEventListener('click',()=>{ state.car=i; renderCarPick(); onCarChange(); });
+    box.appendChild(b);
+  }
+  const hint=document.getElementById('carPickHint');
+  if(hint) hint.textContent=`(총 ${n}칸 · ${best}호차가 한산)`;
+}
+
+// 컨텍스트 문구 + 호차 변경 시 화면 갱신
+function seatCtxText(){
+  return `${state.line} ${state.trainNo}열차 · ${carCount()}칸 중 ${state.car}호차 · ${state.curStation} 부근`;
+}
+function onCarChange(){
+  // step1이 떠 있으면 좌석 그리드를 즉시 갱신, 아니면 step0 컨텍스트만 갱신
+  if(!document.getElementById('step1').classList.contains('hide')){
+    if(state.mode==='viewer') refreshViewer(); else buildCar();
+    document.getElementById('seatCtxLabel').textContent = seatCtxText()+(state.mode==='viewer'?' (보기 전용)':'');
+  } else {
+    renderCtx();
+  }
+}
+
+// ---- SVG 헬퍼 ----
+const SVGNS='http://www.w3.org/2000/svg';
+function svgEl(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in (attrs||{})) e.setAttribute(k,attrs[k]); return e; }
+let _mapList=[];          // 마지막으로 그린 열차 목록 (리사이즈 재렌더용)
+let _mapRO=null, _mapRAF=0;
+
+// 카카오맵 초정밀 지하철식: 2호선=세로 타원 순환선 / 그 외=S자. 위에 실시간 열차 배치.
+function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
+  if(list && targetMapId === 'lineMap') _mapList=list; 
+  else if(targetMapId === 'lineMap') list=_mapList;
+  else list = list || _mapList; // Use existing train list for exit picker too
+  
+  const map=document.getElementById(targetMapId);
+  const wrap=map ? map.parentElement : null;
+  if(!map){ return; }
+  map.innerHTML='';
+  let order=STATION_ORDER[state.line];
+  let approx=false;
+  if(!order){
+    order=[...new Set(list.map(t=>(t.statnNm||'').replace(/역$/,'')).filter(Boolean))];
+    approx=true;
+  }
+  if(order.length<2){ wrap.classList.add('hide'); if(targetMapId==='lineMap') document.getElementById('trainList').classList.remove('hide'); return; }
+
+  // 블록(컨테이너)을 늘이면 지도도 함께 늘어나도록 ResizeObserver 1회 연결
+  if(!_mapRO && window.ResizeObserver && targetMapId === 'lineMap'){
+    _mapRO=new ResizeObserver(()=>{
+      if(document.getElementById('trainMapWrap').classList.contains('hide')) return;
+      cancelAnimationFrame(_mapRAF); _mapRAF=requestAnimationFrame(()=>renderTrainMap());
+    });
+    _mapRO.observe(map);
+  }
+
+  const n=order.length;
+  const col=lineColor(state.line);
+  const isLoop=(state.line==='2호선' && !approx); // 2호선만 순환선
+  const W=Math.max(300,(map.clientWidth||340)-16);
+  const Hbox=Math.max(240,(map.clientHeight||440)-16);
+
+  // 1) 역 좌표
+  const pts=[]; let H; let cols = 1;
+  if(isLoop){
+    const padX = 60, padY = 60;
+    const w = W - 2 * padX;
+    const spacing = 75; // 역 간격을 넓혀 네모 형태로 구성
+    const perimeter = n * spacing;
+    let h = (perimeter - 2 * w) / 2;
+    if (h < w) h = w; 
+    H = h + 2 * padY;
+    
+    const len = 2*w + 2*h;
+    for(let i=0;i<n;i++){ 
+      let t = (i / n) + 0.125; 
+      let d = (t % 1.0) * len;
+      let x, y, nx, ny, side;
+      if (d <= w) { x = padX + d; y = padY; nx = 0; ny = -1; side = 'top'; }
+      else if (d <= w + h) { d -= w; x = padX + w; y = padY + d; nx = 1; ny = 0; side = 'right'; }
+      else if (d <= 2*w + h) { d -= (w + h); x = padX + w - d; y = padY + h; nx = 0; ny = 1; side = 'bottom'; }
+      else { d -= (2*w + h); x = padX; y = padY + h - d; nx = -1; ny = 0; side = 'left'; }
+      pts.push({x, y, nx, ny, side, ang:0});
+    }
+  } else {
+    const pad=44, spacing=92, rowGap=104;     // 간격 축소
+    cols=Math.max(2, Math.floor((W-2*pad)/spacing)+1);
+    const rows=Math.ceil(n/cols);
+    const colGap=cols>1?(W-2*pad)/(cols-1):0;
+    H=pad*2+(rows-1)*rowGap+24;
+    for(let i=0;i<n;i++){ const rw=Math.floor(i/cols); let c=i%cols; if(rw%2===1) c=cols-1-c; pts.push({x:pad+c*colGap, y:pad+rw*rowGap, ang:0}); }
+  }
+
+  // 2) SVG: 레일 + 역점 + 역명
+  const svg=svgEl('svg',{width:W, height:H, viewBox:`0 0 ${W} ${H}`}); svg.style.display='block';
+  let d='M '+pts.map(p=>`${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
+  if(isLoop) d+=' Z';
+  svg.appendChild(svgEl('path',{d, fill:'none', stroke:col, 'stroke-width':11, 'stroke-linejoin':'round','stroke-linecap':'round','opacity':0.9}));
+  pts.forEach((p,i)=>{
+    const cur=order[i]===state.curStation;
+    const stGroup = svgEl('g', {style: isExitPicker ? 'cursor:pointer' : ''});
+    
+    if (isExitPicker) {
+      stGroup.addEventListener('click', () => chooseExit(order[i]));
+      // Touch target expander for mobile
+      stGroup.appendChild(svgEl('circle', {cx:p.x, cy:p.y, r:24, fill:'transparent'}));
+    }
+    
+    stGroup.appendChild(svgEl('circle',{cx:p.x, cy:p.y, r:cur?9:5, fill:cur?'#fff':'#16243f', stroke:cur?col:'#6f8cc0', 'stroke-width':cur?4:2.5}));
+    if(n<=60){
+      let tx, ty, anchor;
+      if(isLoop){
+        // 역명은 네모 '안쪽'에 배치하여 열차와 겹치지 않게 함
+        if (p.side === 'top') { tx = p.x; ty = p.y + 18; anchor = 'middle'; }
+        else if (p.side === 'bottom') { tx = p.x; ty = p.y - 12; anchor = 'middle'; }
+        else if (p.side === 'right') { tx = p.x - 12; ty = p.y + 4; anchor = 'end'; }
+        else if (p.side === 'left') { tx = p.x + 12; ty = p.y + 4; anchor = 'start'; }
+      } else { tx=p.x; ty=p.y+18; anchor='middle'; }
+      const t=svgEl('text',{x:tx.toFixed(1), y:ty.toFixed(1), 'text-anchor':anchor, 'font-size':cur?13:11, 'font-weight':cur?800:700, fill:cur?'#fff':'#aab9d6'});
+      t.textContent=order[i]; stGroup.appendChild(t);
+    }
+    svg.appendChild(stGroup);
+  });
+
+  // 3) 실시간 열차 핀 — 역명과 겹치지 않게: 상/하행 분리 및 안겹치게 배치
+  const seen={};
+  list.forEach(t=>{
+    const cur=(t.statnNm||'').replace(/역$/,''); const idx=order.indexOf(cur); if(idx<0) return;
+    const p=pts[idx]; const up=(t.updnLine==='0'); const sel=String(t.trainNo)===String(state.trainNo);
+    
+    // 방향(상/하행)별로 쌓기 위해 키 분리
+    const key = `${idx}_${t.updnLine}`;
+    const k=seen[key]=(seen[key]||0); seen[key]++;
+    
+    let x,y;
+    if(isLoop){
+      // 0=내선(상행), 1=외선(하행). 외선은 노선도의 바깥쪽(nx, ny 방향), 내선은 안쪽으로 겹치지 않게 배치
+      const isOuter = !up; 
+      const baseShift = 34; // 역명 텍스트(안쪽)를 피해서 넉넉히 띄움
+      const stackShift = k * 22;
+      const totalShift = isOuter ? (baseShift + stackShift) : -(baseShift + stackShift);
+      x = p.x + p.nx * totalShift;
+      y = p.y + p.ny * totalShift;
+    }
+    else {
+      // 상행(0) = 위(y - 22 - k*20) | 하행(1) = 아래(y + 22 + k*20)
+      const dirOffset = up ? -22 : 22;
+      const shift = dirOffset + (up ? -k * 20 : k * 20);
+      x=p.x; y=p.y+shift;
+    }
+    
+    // 지하철 이동 방향 판별
+    let moveDir = '';
+    if(isLoop){
+      if (p.side === 'top') moveDir = up ? 'right' : 'left'; 
+      else if (p.side === 'right') moveDir = up ? 'down' : 'up';
+      else if (p.side === 'bottom') moveDir = up ? 'left' : 'right';
+      else if (p.side === 'left') moveDir = up ? 'up' : 'down';
+    } else {
+      const row = Math.floor(idx / cols);
+      const movingForward = !up; 
+      if (row % 2 === 0) moveDir = movingForward ? 'right' : 'left';
+      else moveDir = movingForward ? 'left' : 'right';
+    }
+
+    let arrow = '';
+    if (moveDir === 'right') arrow = '▶';
+    else if (moveDir === 'left') arrow = '◀';
+    else if (moveDir === 'up') arrow = '▲';
+    else if (moveDir === 'down') arrow = '▼';
+    
+    const label = (moveDir==='right') ? (t.trainNo + ' ' + arrow) : (arrow + ' ' + t.trainNo);
+    const wpx = label.length*8.2+16; 
+    
+    const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
+    
+    // Ghost pin: opacity: 0.3, interaction disabled
+    if (t.isGhost) {
+      g.setAttribute('opacity', 0.3);
+      g.style.pointerEvents = 'none';
+    } else {
+      g.style.cursor='pointer';
+      g.addEventListener('click',()=>selectTrain(t));
+    }
+    
+    // 열차 이미지 마스크 처리 (train.png)
+    const isFlipped = (moveDir === 'left');
+    const maskScale = isFlipped ? 'scaleX(-1)' : 'none';
+    
+    const fo = svgEl('foreignObject', {x: -wpx/2, y: -13, width: wpx, height: 26});
+    const div = document.createElement('div');
+    div.style.width = '100%';
+    div.style.height = '100%';
+    // 배경색: 선택되면 노란색, 아니면 고유 노선색 (col)
+    const fillVal = sel ? '#ffd54f' : col;
+    div.style.backgroundColor = fillVal;
+    div.style.webkitMask = "url('train.png') center/100% 100% no-repeat";
+    div.style.mask = "url('train.png') center/100% 100% no-repeat";
+    div.style.transform = maskScale;
+    if(sel) {
+      div.style.filter = 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)';
+    }
+    fo.appendChild(div);
+    g.appendChild(fo);
+
+    // 텍스트 대비 색상
+    let textCol = '#fff';
+    if(sel) {
+      textCol = '#222';
+    } else {
+      const r = parseInt(col.substr(1,2),16)||0;
+      const gr = parseInt(col.substr(3,2),16)||0;
+      const b = parseInt(col.substr(5,2),16)||0;
+      textCol = ((r*299 + gr*587 + b*114)/1000 >= 140) ? '#111' : '#fff';
+    }
+
+    const tt=svgEl('text',{x:0, y:5, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
+    tt.textContent=label; 
+    g.appendChild(tt);
+    
+    const title=svgEl('title'); 
+    title.textContent=`${t.trainNo}열차 · ${(t.statnTnm||'').replace(/역$/,'')}행 · 현재 ${cur}${t.isGhost ? ' (이전 위치)' : ''}`; 
+    g.appendChild(title);
+    
+    svg.appendChild(g);
+  });
+
+  map.appendChild(svg);
+  wrap.classList.remove('hide');
+  const hint=document.getElementById('mapHint');
+  if(hint) hint.textContent = (isLoop?'⬭ 2호선 순환선(안쪽:내선/바깥쪽:외선)':'배치: 상행(위)·하행(아래)')+' · '
+    +(approx?'운행 중인 역만 표시':'🔵상행 · 🔴하행')+' · 열차 탭 시 자동 선택 · 크기 조절 손잡이';
+}
+
+function renderCtx(){
+  const chips = document.getElementById('ctxChips');
+  chips.innerHTML = `
+    <div class="chip">노선 <b>${state.line}</b></div>
+    <div class="chip">🔴 <b>${state.trainNo}</b>열차 추적</div>
+    <div class="chip">${state.destStation}행</div>
+    <div class="chip"><b>${carCount()}</b>칸 편성</div>
+    <div class="chip">현재 <b>${state.curStation}</b></div>`;
+  document.getElementById('confirmCtx').classList.remove('hide');
+  speak(`${state.line} ${state.trainNo}열차, ${state.destStation}행으로 골랐어요. 맞으면 시작을 눌러주세요.`);
+}
+
+function autoDetect(){
+  renderLineChips();
+  loadTrains();
+}
+
+// ---- 4. 좌석 그리드(기차 모양) 생성 ----
+// 한 칸 = 윗줄/아랫줄 롱시트, 양 끝 교통약자석, 중간 일반석 7인석 묶음 2개 + 문
+function buildCar(){
+  const car = document.getElementById('car');
+  car.querySelectorAll('.benchrow,.aisle,.rowlabel,.carmeta').forEach(e=>e.remove());
+
+  // 도면 머리말: 노선색 + 행선지 방향
+  const dir = car.querySelector('.dir');
+  if(dir){
+    dir.style.background = lineColor(state.line);
+    dir.textContent = (state.destStation? state.destStation+' 방면 ' : '진행 방향 ')+'→';
+  }
+  const meta = document.createElement('div'); meta.className='carmeta';
+  const sec = sideSections(state.line);
+  const seatsPerSide = sec.reduce((a,p)=>a+(p.seats||0),0);
+  meta.innerHTML = `<span class="carmeta-line" style="background:${lineColor(state.line)}">${state.line}</span>`
+    + `<span>${state.car}호차 · 총 ${seatsPerSide*2}석</span>`
+    + `<span class="carmeta-sub">교통약자석 12 · ${(LINE_META[state.line]||{}).form==='6'?'6':'7'}인석 기준</span>`;
+  car.insertBefore(meta, car.firstChild.nextSibling);
+
+  const makeRow = (rowName, rowIdx)=>{
+    const label = document.createElement('div');
+    label.className='rowlabel'; label.textContent = rowName + (rowIdx===1?' (진행방향 왼쪽)':' (진행방향 오른쪽)');
+    const row = document.createElement('div'); row.className='benchrow';
+    const layout = sideSections(state.line);
+    let n=0;
+    layout.forEach(part=>{
+      if(part.door){ const d=document.createElement('div'); d.className='door'; d.title='출입문'; row.appendChild(d); }
+      else for(let i=0;i<part.seats;i++){
+        n++;
+        const s=document.createElement('div');
+        const code = `${rowIdx}-${n}`;
+        let cls='seat';
+        let isPreg=false;
+        if(part.type==='priority') cls+=' priority';
+        else {
+          if(part.preg==='head' && i===part.seats-1){ cls+=' pregnant'; isPreg=true; }
+          if(part.preg==='tail' && i===0){ cls+=' pregnant'; isPreg=true; }
+        }
+        s.className=cls;
+        s.dataset.code=code; s.dataset.row=rowName;
+        s.dataset.type = part.type==='priority'?'priority':(isPreg?'pregnant':'normal');
+        s.textContent=n;
+        // 데모용 빈자리 상태 시드 (일반석에만)
+        if(part.type==='normal' && !isPreg){
+          const r=Math.random();
+          if(r>0.86) s.classList.add('free-next');
+          else if(r>0.72) s.classList.add('free-soon');
+        }
+        s.addEventListener('click',()=>pickSeat(s,rowName,code));
+        row.appendChild(s);
+      }
+    });
+    car.appendChild(label); car.appendChild(row);
+    return row;
+  };
+
+  makeRow('윗줄', 1);
+  const aisle=document.createElement('div'); aisle.className='aisle'; aisle.textContent='· · · 통 로 (서서 가는 공간) · · ·'; car.appendChild(aisle);
+  makeRow('아랫줄', 2);
+}
+
+function pickSeat(el,rowName,code){
+  // 뷰어 모드: 등록하지 않고 자리 상태만 안내
+  if(state.mode==='viewer'){
+    let msg;
+    if(el.classList.contains('free-next')) msg=`${rowName} ${el.textContent}번은 다음 역에서 비어요.`;
+    else if(el.classList.contains('free-soon')) msg=`${rowName} ${el.textContent}번은 두세 정거장 뒤에 비어요.`;
+    else if(el.classList.contains('pregnant')) msg=`${rowName} ${el.textContent}번은 임산부 배려석이에요.`;
+    else if(el.classList.contains('priority')) msg=`${rowName} ${el.textContent}번은 교통약자석이에요.`;
+    else msg=`${rowName} ${el.textContent}번은 아직 빈자리 정보가 없어요.`;
+    toast(msg); speak(msg);
+    return;
+  }
+  document.querySelectorAll('.seat.mine').forEach(s=>s.classList.remove('mine'));
+  el.classList.add('mine');
+  state.mySeat = {code, row:rowName, num:el.textContent};
+  document.getElementById('seatPicked').textContent =
+    `선택한 자리: ${state.line} ${state.car}호차 ${rowName} ${el.textContent}번`;
+  speak(`${rowName} ${el.textContent}번 자리를 선택했어요. 이제 내릴 역을 골라주세요.`);
+  buildStations();
+  goStep(2);
+}
+
+// ---- 모드 진입 ----
+// (A) 이미 앉은 사람: 호차 + 자리 + 하차역만 기록
+function enterParticipate(){
+  state.mode='participate';
+  document.getElementById('step1Title').textContent='🪑 내 칸과 자리를 기록해요';
+  document.getElementById('seatCtxLabel').textContent= seatCtxText();
+  document.getElementById('seatCarPick').classList.remove('hide'); // 어느 칸에 탔는지
+  renderCarPick();
+  document.getElementById('viewerSummary').classList.add('hide');
+  document.getElementById('couldNotSit').classList.remove('hide');
+  document.getElementById('viewerRefresh').classList.add('hide');
+  document.getElementById('viewerBack').classList.add('hide');
+  document.getElementById('viewerToJoin').classList.add('hide');
+  document.getElementById('step1Help').textContent='① 위에서 탄 칸을 고르고 ② 앉은 자리를 한 번 눌러주세요.';
+  buildCar(); showSection('step1'); setStep(1);
+  speak('먼저 탄 칸을 고르고, 앉은 자리를 눌러주세요.');
+}
+// (B) 아직 안 탄/서 있는 사람: 전체 편성 칸별 빈자리 현황 먼저
+function enterViewer(){
+  state.mode='viewer';
+  buildFleet();
+  showSection('stepFleet'); setStep(1);
+}
+// 전체 편성에서 특정 칸을 골라 자세히 보기 (읽기 전용)
+function enterViewerCar(i){
+  state.mode='viewer';
+  state.car=i;
+  document.getElementById('step1Title').textContent=`👀 ${i}호차 빈자리 상황`;
+  document.getElementById('seatCtxLabel').textContent= seatCtxText()+' (보기 전용)';
+  document.getElementById('seatCarPick').classList.remove('hide');
+  renderCarPick();
+  document.getElementById('couldNotSit').classList.add('hide');
+  document.getElementById('viewerRefresh').classList.remove('hide');
+  document.getElementById('viewerBack').classList.remove('hide');
+  document.getElementById('viewerToJoin').classList.remove('hide');
+  document.getElementById('step1Help').textContent='자리를 누르면 그 자리 상태를 알려드려요. 공유는 되지 않아요.';
+  refreshViewer();
+  showSection('step1'); setStep(1);
+}
+// 전체 편성 N량 칸별 빈자리 현황 보드
+function buildFleet(){
+  document.getElementById('fleetCtx').textContent =
+    `${state.line} ${state.trainNo}열차 · ${state.destStation}행 · 현재 ${state.curStation} · 총 ${carCount()}칸`;
+  const box=document.getElementById('fleetCars'); box.innerHTML='';
+  const lvColors=['#27ae60','#8bbf3a','#f2c94c','#f2994a','#eb5757'];
+  const n=carCount();
+  let best=1, bestFree=-1;
+  const data=[];
+  for(let i=1;i<=n;i++){
+    const lv=lvClass();
+    let free = 0;
+    if (lv === 0) free = 10 + Math.floor(Math.random() * 6);
+    else if (lv === 1) free = 5 + Math.floor(Math.random() * 5);
+    else if (lv === 2) free = 2 + Math.floor(Math.random() * 3);
+    else if (lv === 3) free = 1;
+    else free = 0;
+    
+    data.push({lv, free});
+    if(free>bestFree){bestFree=free; best=i;}
+  }
+  data.forEach((d,idx)=>{
+    const i=idx+1;
+    const wrap=document.createElement('div'); wrap.className='cgcar'; wrap.style.cursor='pointer';
+    wrap.innerHTML=
+      `<div class="cgbar lv${d.lv}" style="background:${lvColors[d.lv]};height:${30+d.free*3}px;color:${d.lv>=2?'#5a4600':'#fff'}">${d.free}석</div>`+
+      `<div class="lbl"${i===best?' style="color:#5be08a"':''}>${i}호차${i===best?' ⭐':''}</div>`;
+    wrap.addEventListener('click',()=>enterViewerCar(i));
+    box.appendChild(wrap);
+  });
+  document.getElementById('fleetBest').innerHTML =
+    `🪑 지금은 <b style="font-size:1.3em">${best}호차</b>에 빈자리가 가장 많아요 (약 ${bestFree}석).<br>`+
+    `<span class="muted" style="color:#cfe">플랫폼에서 ${best}호차 위치로 이동해 타시면 앉을 확률이 높아요.</span>`;
+  speak(`전체 ${n}칸 중 ${best}호차에 빈자리가 가장 많아요. ${best}호차 위치로 이동해 보세요.`);
+}
+function refreshViewer(){
+  buildCar();
+  const next=document.querySelectorAll('#car .seat.free-next').length;
+  const soon=document.querySelectorAll('#car .seat.free-soon').length;
+  document.getElementById('viewerSummary').classList.remove('hide');
+  document.getElementById('viewerCount').textContent =
+    `🟢 다음 역에서 비는 자리 ${next}개 · 🟡 2~3정거장 내 ${soon}개`;
+  document.getElementById('viewerHint').textContent =
+    next>0 ? '초록색 자리 근처로 미리 이동해 보세요.' : '지금은 곧 비는 자리가 없어요. 잠시 후 새로고침해 보세요.';
+  speak(`이 칸에 다음 역에서 비는 자리 ${next}개, 두세 정거장 안에 비는 자리 ${soon}개가 있어요.`);
+}
+
+// ---- 5. 하차역 선택 ----
+function buildStations(){
+  const grid=document.getElementById('stationGrid'); grid.innerHTML='';
+  const order = STATION_ORDER[state.line];
+  let upcoming=[];
+  if(order){
+    // 진행 방향을 고려해 현재역 이후 모든 정차역을 리스트로 표시
+    let idx=order.indexOf(state.curStation); if(idx<0) idx=0;
+    upcoming = state.updnLine==='1' ? order.slice(0,idx).reverse()
+                                    : order.slice(idx+1);
+    // 순환선(2호선) 예외 처리
+    if(upcoming.length===0) upcoming = order.slice(idx+1).concat(order.slice(0,idx));
+  }
+  // 노선 정차역 데이터가 없으면 종착역만이라도 제시
+  if(upcoming.length===0 && state.destStation) upcoming=[state.destStation];
+  if(upcoming.length===0) upcoming=['다음 역','두 정거장 뒤','종착역'];
+  upcoming.forEach(st=>{
+    const b=document.createElement('button'); b.textContent=st;
+    b.addEventListener('click',()=>chooseExit(st));
+    grid.appendChild(b);
+  });
+  
+  // 목적지 선택용 노선도 렌더링
+  renderTrainMap(_mapList, 'exitMap', true);
+}
+function chooseExit(st){
+  state.exitStation=st;
+  completeShare();
+}
+
+// ---- 6. 공유 완료 + 크레딧 보상 ----
+function completeShare(){
+  const base=20;
+  addCredit(base);
+  document.getElementById('doneDesc').textContent =
+    `${state.line} ${state.car}호차 ${state.mySeat.row} ${state.mySeat.num}번 · ${state.exitStation}역에서 비움(으로 공유했어요).`;
+  document.getElementById('rewardAmt').textContent = `+${base} 🪙`;
+  speak(`고맙습니다. ${state.exitStation}역에서 비는 자리로 공유했어요. 기본 크레딧 ${base}점을 드렸어요. 자리를 기다리던 분께도 함께 적립돼요.`);
+  goStep(3);
+}
+
+function addCredit(n){
+  state.credits += n;
+  localStorage.setItem('ag_credit', state.credits);
+  document.getElementById('creditVal').textContent = state.credits;
+}
+
+// ---- 7. 앉지 못함 ----
+function couldNotSit(){
+  speak('앉지 못하셨군요. 괜찮아요. 곧 비는 자리를 찾아드릴게요.');
+  document.getElementById('step1').classList.add('hide');
+  document.getElementById('stepNo').classList.remove('hide');
+  setStep(1);
+}
+
+// ---- 8. 단계 전환 ----
+function setStep(i){
+  document.querySelectorAll('#stepbar i').forEach((b,idx)=>b.classList.toggle('on',idx<=i));
+}
+const ALL_SECTIONS=['stepLogin','step0','stepMode','stepFleet','step1','step2','step3','stepNo','stepBoard'];
+function showSection(id){
+  ALL_SECTIONS.forEach(s=>document.getElementById(s).classList.add('hide'));
+  document.getElementById(id).classList.remove('hide');
+  // 진행 표시줄은 본 흐름에서만
+  const flow = ['step0','stepMode','stepFleet','step1','step2','step3','stepNo'].includes(id);
+  document.getElementById('stepbar').style.display = flow ? '' : 'none';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goStep(i){
+  showSection('step'+i);
+  setStep(i);
+}
+
+function toast(t){
+  const el=document.createElement('div'); el.className='toast'; el.textContent=t;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),2200);
+}
+
+// ---- 9. 이벤트 바인딩 ----
+// 차량번호로 현재 위치 재동기화 (완벽 매칭): 같은 trainNo의 최신 위치를 다시 받아 갱신
+async function syncTrackedTrain(){
+  if(!state.trackedTrain) return;
+  try{
+    const list = await fetchTrainPosition(state.line);
+    const t = list.find(x=>String(x.trainNo)===String(state.trackedTrain));
+    if(t){
+      state.curStation=(t.statnNm||state.curStation).replace(/역$/,'');
+      state.destStation=(t.statnTnm||state.destStation).replace(/역$/,'');
+      state.updnLine=t.updnLine; state.trainSttus=t.trainSttus;
+      setUpdateStamp(true, t.recptnDt);
+    }
+  }catch(e){ /* CORS/네트워크 차단 시 기존 값 유지 */ }
+}
+document.getElementById('confirmCtx').addEventListener('click',async ()=>{
+  await syncTrackedTrain(); // 시작 직전 내 열차(차량번호) 최신 위치로 매칭
+  document.getElementById('modeCtxLabel').textContent =
+    `${state.line} ${state.trainNo}열차 · ${carCount()}칸 중 ${state.car}호차 · 현재 ${state.curStation} 부근`;
+  showSection('stepMode'); setStep(0);
+  speak('지금 상황을 골라주세요. 아직 안 탔으면 전체 칸 빈자리 현황을, 이미 앉았으면 자리 기록을 도와드려요.');
+});
+document.getElementById('modeJoin').addEventListener('click',enterParticipate);
+document.getElementById('modeView').addEventListener('click',enterViewer);
+// 카카오맵 초정밀 지하철 열기 (현재역 기준)
+document.getElementById('openKakaoLive').addEventListener('click',()=>{
+  const q=encodeURIComponent((state.curStation||'')+'역');
+  window.open(`https://map.kakao.com/?q=${q}`,'_blank','noopener');
+  toast('카카오맵 앱: 역 검색 → 열차 위치 보기로 내 열차 번호를 확인하세요');
+});
+// 지도 ↔ 목록 토글
+document.getElementById('toggleTrainList').addEventListener('click',()=>{
+  const list=document.getElementById('trainList');
+  const map=document.getElementById('lineMap');
+  const hidden=list.classList.toggle('hide');
+  document.getElementById('toggleTrainList').textContent = hidden ? '📋 목록으로 고르기' : '🗺️ 지도로 고르기';
+  map.style.display = hidden ? '' : 'none';
+});
+// 지도 크기 조절 손잡이 (아래쪽 드래그)
+(function(){
+  const bindResize = (handleId, mapId) => {
+    const handle=document.getElementById(handleId), mapEl=document.getElementById(mapId);
+    if(!handle||!mapEl) return;
+    let sy=0, sh=0, drag=false;
+    const pt=e=>e.touches?e.touches[0].clientY:e.clientY;
+    const down=e=>{ drag=true; sy=pt(e); sh=mapEl.offsetHeight; e.preventDefault(); };
+    const move=e=>{ if(!drag) return; let h=sh+(pt(e)-sy); h=Math.max(220, Math.min(window.innerHeight*0.85, h)); mapEl.style.height=h+'px'; e.preventDefault(); };
+    const up=()=>{ drag=false; };
+    handle.addEventListener('mousedown',down); handle.addEventListener('touchstart',down,{passive:false});
+    window.addEventListener('mousemove',move); window.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('mouseup',up);   window.addEventListener('touchend',up);
+  };
+  bindResize('mapResize', 'lineMap');
+  bindResize('exitMapResize', 'exitMap');
+})();
+document.getElementById('viewerRefresh').addEventListener('click',()=>{ refreshViewer(); toast('새로고침했어요'); });
+document.getElementById('viewerToJoin').addEventListener('click',enterParticipate);
+document.getElementById('viewerBack').addEventListener('click',()=>{ buildFleet(); showSection('stepFleet'); setStep(1); });
+// 전체 편성 현황 화면 버튼
+document.getElementById('fleetRefresh').addEventListener('click',()=>{ buildFleet(); toast('새로고침했어요'); });
+document.getElementById('fleetToJoin').addEventListener('click',enterParticipate);
+document.getElementById('fleetHome').addEventListener('click',resetAll);
+document.getElementById('couldNotSit').addEventListener('click',couldNotSit);
+document.getElementById('showFree').addEventListener('click',()=>{
+  enterViewer();
+  toast('초록·노랑 자리가 곧 비는 자리예요');
+});
+document.getElementById('restart').addEventListener('click',resetAll);
+document.getElementById('restart2').addEventListener('click',resetAll);
+
+document.getElementById('fontBtn').addEventListener('click',()=>{
+  state.fontStep=(state.fontStep+1)%fontScales.length;
+  document.documentElement.style.setProperty('--fs', fontScales[state.fontStep]);
+  toast(['보통 글씨','큰 글씨','아주 큰 글씨'][state.fontStep]);
+});
+document.getElementById('voiceBtn').addEventListener('click',(e)=>{
+  state.voice=!state.voice;
+  e.currentTarget.classList.toggle('on',state.voice);
+  if(state.voice){ toast('음성 안내 켜짐'); speak('음성 안내를 켰어요. 화면을 누르면 안내해 드릴게요.'); }
+  else { window.speechSynthesis.cancel(); toast('음성 안내 꺼짐'); }
+});
+
+function resetAll(){
+  state.mySeat=null; state.exitStation=null; state.mode='participate';
+  document.getElementById('couldNotSit').classList.remove('hide');
+  document.getElementById('viewerSummary').classList.add('hide');
+  document.getElementById('viewerRefresh').classList.add('hide');
+  document.getElementById('viewerBack').classList.add('hide');
+  document.getElementById('viewerToJoin').classList.add('hide');
+  document.getElementById('seatCarPick').classList.add('hide');
+  showSection('step0'); setStep(0);
+  document.getElementById('confirmCtx').classList.add('hide');
+  autoDetect();
+}
+
+// ---- 10. 테마 시스템 ----
+const THEMES = {
+  dark:   {'--bg':'#0e1726','--card':'#172238','--line':'#2a3a5c','--ink':'#f3f6fc','--sub':'#9fb2d4','--tint':'#0f1b30','--header-bg':'#101a2e','--accent':'#2f80ed','--accent-ink':'#ffffff'},
+  kakao:  {'--bg':'#ECE7D3','--card':'#FFFFFF','--line':'#E3DCC2','--ink':'#2B2113','--sub':'#7A6F52','--tint':'#FBF7E8','--header-bg':'#FEE500','--accent':'#FEE500','--accent-ink':'#3A2D00'},
+  naver:  {'--bg':'#EAF3EC','--card':'#FFFFFF','--line':'#D5E6DA','--ink':'#15201A','--sub':'#5E7367','--tint':'#F1F8F3','--header-bg':'#03C75A','--accent':'#03C75A','--accent-ink':'#FFFFFF'},
+  kurly:  {'--bg':'#F3ECF7','--card':'#FFFFFF','--line':'#E3D3EE','--ink':'#1E1226','--sub':'#76688A','--tint':'#FAF5FD','--header-bg':'#5F0080','--accent':'#5F0080','--accent-ink':'#FFFFFF'},
+};
+function applyTheme(name, opts){
+  let t = THEMES[name];
+  if(name==='custom'){
+    const base = (opts&&opts.base) || localStorage.getItem('ag_custom_base') || 'dark';
+    const color = (opts&&opts.color) || localStorage.getItem('ag_custom_color') || '#2f80ed';
+    t = Object.assign({}, THEMES[base==='light'?'naver':'dark']);
+    if(base==='light'){ t['--header-bg']=color; } else { t['--header-bg']='#101a2e'; }
+    t['--accent']=color; t['--accent-ink']=pickInk(color);
+    localStorage.setItem('ag_custom_base',base); localStorage.setItem('ag_custom_color',color);
+  }
+  if(!t) t=THEMES.dark;
+  for(const k in t) document.documentElement.style.setProperty(k,t[k]);
+  localStorage.setItem('ag_theme', name);
+  document.querySelectorAll('.themebtn').forEach(b=>b.classList.toggle('sel', b.dataset.theme===name));
+  document.getElementById('customRow').classList.toggle('hide', name!=='custom');
+}
+function pickInk(hex){ // 밝은 강조색이면 어두운 글씨
+  const c=hex.replace('#',''); const r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16);
+  return (0.299*r+0.587*g+0.114*b)>150 ? '#222' : '#fff';
+}
+document.querySelectorAll('.themebtn').forEach(b=>{
+  b.addEventListener('click',()=>{ applyTheme(b.dataset.theme); toast(b.textContent.trim()+' 테마'); });
+});
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  document.getElementById('themePanel').classList.toggle('hide');
+});
+document.getElementById('customColor').addEventListener('input',e=>applyTheme('custom',{color:e.target.value}));
+document.getElementById('customBase').addEventListener('change',e=>applyTheme('custom',{base:e.target.value}));
+
+// ---- 11. 로그인 (Firebase 연동은 하단 module script) ----
+function setProfile(user){
+  const pb=document.getElementById('profileBtn');
+  pb.classList.remove('hide');
+  // 헤더 버튼은 동작이 '로그아웃'이므로 항상 'logout'으로 명확히 표기
+  if(user.photo){ pb.innerHTML=`<img src="${user.photo}" alt=""><span>logout</span>`; }
+  else { pb.innerHTML=`<span id="profileInit">logout</span>`; }
+  pb.title = (user.name||'사용자')+' · 로그아웃';
+}
+window.agOnLogin = function(user){
+  state.user = user;
+  setProfile(user);
+  toast((user.name||'환영합니다')+'님 로그인');
+  speak(`${user.name||''}님 환영해요.`);
+  resetAll(); // step0로 진입하며 실시간 열차 로드
+};
+window.agShowLogin = function(){
+  state.user=null;
+  document.getElementById('profileBtn').classList.add('hide');
+  showSection('stepLogin');
+};
+document.getElementById('guestLogin').addEventListener('click',()=>window.agOnLogin({name:'게스트',guest:true}));
+document.getElementById('profileBtn').addEventListener('click',()=>{
+  if(confirm('로그아웃 할까요?')){ if(window.agLogout) window.agLogout(); else window.agShowLogin(); }
+});
+
+// ---- 12. 노선도 · 혼잡도 현황 보드 ----
+const CG_LV=['여유','보통','혼잡','매우혼잡'];
+document.getElementById('boardBtn').addEventListener('click',openBoard);
+document.getElementById('boardBack').addEventListener('click',()=>{
+  showSection(state.boardReturn||'step0');
+});
+document.getElementById('boardHome').addEventListener('click',resetAll);
+document.getElementById('boardRefresh').addEventListener('click',()=>{ buildBoard(); toast('새로고침했어요'); });
+document.getElementById('openKakaoMap').addEventListener('click',()=>{
+  window.open('https://map.kakao.com/?target=subway&REGION=01','_blank','noopener');
+});
+function openBoard(){
+  if(document.getElementById('stepLogin').classList.contains('hide')===false) return; // 로그인 화면에선 무시
+  state.boardReturn = ALL_SECTIONS.find(s=>!document.getElementById(s).classList.contains('hide')) || 'step0';
+  buildBoard();
+  showSection('stepBoard');
+}
+function lvClass(){ // 0~4 가중치(혼잡 쪽으로 약간)
+  const r=Math.random(); return r<0.28?0:r<0.55?1:r<0.78?2:r<0.92?3:4;
+}
+function buildBoard(){
+  document.getElementById('boardCtx').textContent =
+    `${state.line} · ${state.trainNo?state.trainNo+'열차 · ':''}${state.curStation||''} 부근`;
+  // 칸별 빈자리 (10칸)
+  const cars=document.getElementById('cgCars'); cars.innerHTML='';
+  let maxCar=1, maxSeats=-1;
+  for(let i=1;i<=10;i++){
+    const lv = lvClass();
+    let seats = 0;
+    let lvColorClass = 'lv0';
+    if (lv === 0) {
+      seats = 10 + Math.floor(Math.random() * 6);
+      lvColorClass = 'lv0';
+    } else if (lv === 1) {
+      seats = 5 + Math.floor(Math.random() * 5);
+      lvColorClass = 'lv1';
+    } else if (lv === 2) {
+      seats = 2 + Math.floor(Math.random() * 3);
+      lvColorClass = 'lv2';
+    } else if (lv === 3) {
+      seats = 1;
+      lvColorClass = 'lv3';
+    } else {
+      seats = 0;
+      lvColorClass = 'lv4';
+    }
+    
+    if(seats > maxSeats){maxSeats=seats; maxCar=i;}
+    
+    const wrap=document.createElement('div'); wrap.className='cgcar';
+    const bar=document.createElement('div'); bar.className='cgbar ' + lvColorClass;
+    bar.style.height=(28 + (seats > 10 ? 10 : seats) * 3)+'px'; 
+    bar.textContent=seats + '석';
+    const lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=i+'호차';
+    wrap.appendChild(bar); wrap.appendChild(lbl); cars.appendChild(wrap);
+  }
+  document.getElementById('cgCarHint').textContent =
+    `지금은 ${maxCar}호차가 가장 여유로워요 (빈자리 ${maxSeats}석). 환승·이동 시 참고하세요.`;
+  // 역별 빈자리 스트립
+  const strip=document.getElementById('cgStrip'); strip.innerHTML='';
+  const order=STATION_ORDER[state.line];
+  let stations;
+  if(order){ let idx=Math.max(0,order.indexOf(state.curStation)); stations=order.slice(idx, idx+10); if(stations.length<6) stations=order.slice(0,10); }
+  else stations=['이번역','다음역','+2','+3','+4','+5'];
+  stations.forEach((nm,i)=>{
+    const lv=lvClass();
+    const c=document.createElement('div'); c.className='cgstation';
+    c.innerHTML=`<div class="pip lv${lv}" title="${CG_LV[Math.min(lv,3)]}"></div><div class="nm">${nm}</div>`;
+    strip.appendChild(c);
+  });
+  speak(`빈자리 현황이에요. ${maxCar}호차가 가장 여유로워요.`);
+}
+
+// ---- 12-B. 실시간 시계 & 데이터 신선도 (신뢰도 표시) ----
+function fmtTime(d){ return d.toLocaleTimeString('ko-KR',{hour12:false}); }
+function tickClock(){
+  const d=new Date();
+  const c=document.getElementById('nowClock'); if(c) c.textContent=fmtTime(d);
+  const dn=document.getElementById('nowDate');
+  if(dn) dn.textContent=d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'})+' · 실시간 서울 교통정보';
+  if(state.lastUpdate){
+    const sec=Math.floor((Date.now()-state.lastUpdate)/1000);
+    const lb=document.getElementById('liveLabel');
+    if(lb) lb.textContent=(state.live?'LIVE':'샘플')+` · ${sec}초 전 갱신`;
+  }
+}
+function setUpdateStamp(live, recptnDt){
+  state.lastUpdate=Date.now();
+  state.live=!!live;
+  const src = recptnDt ? (String(recptnDt).split(' ')[1]||String(recptnDt)) : fmtTime(new Date());
+  const u=document.getElementById('updClock'); if(u) u.textContent=src;
+  const p=document.getElementById('livePulse'); if(p) p.classList.toggle('off', !live);
+  const lb=document.getElementById('liveLabel'); if(lb) lb.textContent=live?'LIVE 연결됨':'샘플 데이터';
+}
+setInterval(tickClock, 1000); tickClock();
+
+function forceUpdateRealtimeData(isManual = false) {
+  const activeSection = ALL_SECTIONS.find(s => !document.getElementById(s).classList.contains('hide'));
+  if (['step0', 'stepFleet', 'stepBoard', 'step1'].includes(activeSection)) {
+    if (isManual) toast('실시간 정보를 업데이트합니다.');
+    if (activeSection === 'stepFleet') {
+      loadTrains(true).then(() => buildFleet());
+    } else if (activeSection === 'stepBoard') {
+      loadTrains(true).then(() => buildBoard());
+    } else if (activeSection === 'step1') {
+      syncTrackedTrain().then(() => onCarChange());
+    } else {
+      loadTrains(true);
+    }
+  }
+}
+
+// 시계 블럭 클릭 시 수동 갱신
+const clockBarContainer = document.getElementById('clockBarContainer');
+if (clockBarContainer) {
+  clockBarContainer.addEventListener('click', () => forceUpdateRealtimeData(true));
+}
+
+// 15초 단위로 실시간 데이터 갱신 (폴링)
+if (state.trainInterval) clearInterval(state.trainInterval);
+state.trainInterval = setInterval(() => forceUpdateRealtimeData(false), 15000);
+
+// ---- 13. 시작 ----
+applyTheme(localStorage.getItem('ag_theme')||'dark');
+document.getElementById('creditVal').textContent = state.credits;
+window.agShowLogin();
+</script>
+
+<!-- ===== Firebase 구글 로그인 ===== -->
+<script type="module">
+  // 정적 HTML(번들러 없음)이므로 npm import가 아닌 gstatic CDN 모듈을 사용합니다.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  import { getAnalytics, isSupported }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+
+  // sit-down-subway 웹앱 (Firebase 프로젝트: desk-rpg)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAiOxk0AFCOqDJbIYJ36a_TDTDmE5dOB0s",
+    authDomain: "desk-rpg.firebaseapp.com",
+    databaseURL: "https://desk-rpg-default-rtdb.firebaseio.com",
+    projectId: "desk-rpg",
+    storageBucket: "desk-rpg.firebasestorage.app",
+    messagingSenderId: "379331761481",
+    appId: "1:379331761481:web:9f0de3dfe6ce1abd3ff698",
+    measurementId: "G-M45C3K836Y"
+  };
+
+  const CONFIGURED = !String(firebaseConfig.apiKey).startsWith("YOUR_");
+  let auth = null, storage = null;
+
+  if (CONFIGURED) {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    storage = getStorage(app);
+    isSupported().then(ok => { if (ok) { try { getAnalytics(app); } catch (e) {} } });
+
+    // 이미 로그인된 사용자가 있으면 자동 진입
+    onAuthStateChanged(auth, (u) => {
+      if (u) window.agOnLogin({ name: u.displayName, photo: u.photoURL, email: u.email, uid: u.uid });
+    });
+    // 로그아웃 동작 연결
+    window.agLogout = async () => { try { await signOut(auth); } catch(e){} window.agShowLogin(); };
+
+    // Storage 헬퍼: 로그인한 사용자가 '자기 폴더(users/{uid})'에만 업로드/조회 (아래 보안 규칙과 짝)
+    window.agUploadMyFile = async (file, name) => {
+      const u = auth.currentUser; if (!u) throw new Error('로그인이 필요해요');
+      const r = storageRef(storage, `users/${u.uid}/${name || file.name}`);
+      await uploadBytes(r, file);
+      return await getDownloadURL(r);
+    };
+  }
+
+  document.getElementById('googleLogin').addEventListener('click', async () => {
+    if (!CONFIGURED) {
+      // 설정 전: 데모로 동작 (실제 키 입력 시 진짜 구글 로그인)
+      window.agOnLogin({ name: '데모 사용자', email: 'demo@example.com', demo: true });
+      return;
+    }
+    try {
+      const provider = new GoogleAuthProvider();
+      const res = await signInWithPopup(auth, provider);
+      window.agOnLogin({ name: res.user.displayName, photo: res.user.photoURL, email: res.user.email });
+    } catch (e) {
+      alert('구글 로그인 실패: ' + (e && e.message ? e.message : e) +
+            '\n(로컬 파일/미승인 도메인에서는 팝업 로그인이 막힐 수 있어요. 배포 도메인을 Firebase 승인 도메인에 추가하세요.)');
+    }
+  });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+          console.log('SW registered: ', registration);
+        }).catch(registrationError => {
+          console.log('SW registration failed: ', registrationError);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

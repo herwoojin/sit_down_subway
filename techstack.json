@@ -1,0 +1,11 @@
+{
+  "name": "sit-down_subway",
+  "version": "1.0.0",
+  "description": "지하철 빈자리 공유 서비스 - 앉아가요",
+  "technologies": {
+    "frontend": ["HTML5", "Vanilla CSS", "JavaScript (ES6)"],
+    "backend_services": ["Firebase Auth", "Firebase Storage", "Firebase Analytics"],
+    "pwa": ["Service Worker", "Web App Manifest"],
+    "apis": ["Seoul Metro Realtime Position API"]
+  }
+}

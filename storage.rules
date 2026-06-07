@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// 앉아가요 — Firebase Storage 보안 규칙
+// 원칙: 기본 전면 차단(default deny) 후, 필요한 경로만 최소 권한으로 허용한다.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 1) 공개 자산(앱 아이콘·일러스트 등): 누구나 읽기, 쓰기는 금지
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 2) 사용자 본인 폴더: 로그인한 '본인'만 읽기/쓰기
+    //    - 5MB 미만, 이미지 파일만 업로드 허용(프로필 사진 등)
+    match /users/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // 3) 그 외 모든 경로는 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,10 +2,16 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="앉아가요">
+<meta name="theme-color" content="#101a2e">
+<meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <title>앉아가요</title>
 <style>
   :root{
@@ -17,7 +23,16 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; padding:0; background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
-  body{max-width:520px; margin:0 auto; padding-bottom:40px; font-size:calc(18px * var(--fs)); line-height:1.5;}
+  body{width:100%; max-width:520px; margin:0 auto; padding-bottom:calc(40px + env(safe-area-inset-bottom));
+    font-size:calc(18px * var(--fs)); line-height:1.5;
+    padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
+  /* 반응형: 태블릿은 더 넓게(가독성), 화면 폭에 비례해 글자도 약간 키움 */
+  @media (min-width:700px){ body{max-width:720px; font-size:calc(19px * var(--fs));} }
+  @media (min-width:1024px){ body{max-width:860px; font-size:calc(20px * var(--fs));} }
+  /* 세로(portrait): 지도를 화면 높이에 비례해 크게 (body 접두사로 우선순위 확보) */
+  @media (orientation:portrait){ body .linemap{height:62vh; max-height:none;} }
+  /* 가로(landscape): 세로 공간이 좁으므로 지도를 화면 높이 거의 전부 활용 */
+  @media (orientation:landscape){ body .linemap{height:80vh; max-height:none;} body .carwrap{max-height:76vh;} }
   header{position:sticky; top:0; z-index:10; background:var(--header-bg); backdrop-filter:blur(6px);
     padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   header .logo{font-weight:800; font-size:1.25em; letter-spacing:-.5px;}
@@ -187,6 +202,7 @@
   <button class="toolbtn" id="themeBtn" title="테마">🎨</button>
   <button class="toolbtn" id="fontBtn" title="글씨 크기">가</button>
   <button class="toolbtn" id="voiceBtn" title="음성 안내">🔊</button>
+  <button class="toolbtn hide" id="installBtn" title="앱 설치">📲</button>
   <button class="toolbtn hide" id="profileBtn" title="로그아웃"><span id="profileInit">·</span></button>
 </header>
 
@@ -1559,6 +1575,34 @@ window.agShowLogin();
           console.log('SW registration failed: ', registrationError);
         });
       });
+    }
+
+    // PWA 설치: Android/데스크톱은 beforeinstallprompt로 설치 버튼 노출
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) installBtn.classList.remove('hide');
+    });
+    if (installBtn) installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        try { await deferredPrompt.userChoice; } catch (e) {}
+        deferredPrompt = null;
+        installBtn.classList.add('hide');
+      } else {
+        // iOS Safari 등 프롬프트 미지원: 수동 설치 안내
+        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        alert(ios
+          ? '아이폰: 사파리 공유 버튼(⬆️) → "홈 화면에 추가"를 누르면 앱처럼 설치됩니다.'
+          : '브라우저 메뉴 → "앱 설치" 또는 "홈 화면에 추가"를 선택하세요.');
+      }
+    });
+    window.addEventListener('appinstalled', () => { if (installBtn) installBtn.classList.add('hide'); });
+    // 이미 설치된(standalone) 상태면 버튼 숨김 유지
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      if (installBtn) installBtn.classList.add('hide');
     }
   </script>
 </body>

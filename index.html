@@ -873,11 +873,12 @@ function onCarChange(){
 const SVGNS='http://www.w3.org/2000/svg';
 function svgEl(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in (attrs||{})) e.setAttribute(k,attrs[k]); return e; }
 let _mapList=[];          // 마지막으로 그린 열차 목록 (리사이즈 재렌더용)
+let _mapListLine=null;    // _mapList가 어느 노선의 스냅샷인지
 let _mapRO=null, _mapRAF=0;
 
 // 카카오맵 초정밀 지하철식: 2호선=세로 타원 순환선 / 그 외=S자. 위에 실시간 열차 배치.
 function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
-  if(list && targetMapId === 'lineMap') _mapList=list; 
+  if(list && targetMapId === 'lineMap') { _mapList=list; _mapListLine=state.line; }
   else if(targetMapId === 'lineMap') list=_mapList;
   else list = list || _mapList; // Use existing train list for exit picker too
   
@@ -1021,6 +1022,8 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
     const wpx = label.length*8.2+16;
 
     const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
+    // 도착 지도: 내 역으로 오는 열차(ETA)만 또렷하게, 나머지는 흐리게
+    if(targetMapId==='arriveMap' && !hasEta && !sel) g.setAttribute('opacity','0.4');
     
     // Ghost pin: opacity: 0.3, interaction disabled
     if (t.isGhost) {
@@ -1908,8 +1911,13 @@ async function renderArrive(){
 }
 // 도착화면 노선도: 선택역 기준 전체 열차 위치 + 다가오는 열차 남은시간(노란 테두리)
 async function renderArriveMap(etaByTrain){
-  let positions=[];
-  try{ positions=await fetchTrainPosition(state.line); }catch(e){}
+  // 라이브 지도와 '같은 스냅샷'을 재사용해 번호 불일치(바뀌어 보임)를 방지.
+  // 같은 노선이면 _mapList 재사용, 다른 노선이면 새로 불러옴.
+  let base;
+  if(_mapList && _mapList.length && _mapListLine===state.line){ base=_mapList; }
+  else { try{ base=await fetchTrainPosition(state.line); }catch(e){ base=_mapList||[]; } }
+  // _mapList(라이브) 오염 방지를 위해 복제 후 도착 ETA만 부여
+  const positions=(base||[]).map(p=>Object.assign({}, p));
   positions.forEach(p=>{ const e=etaByTrain[String(p.trainNo)]; if(e!=null) p.__eta=e; });
   renderTrainMap(positions, 'arriveMap', false);
 }

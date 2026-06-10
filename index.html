@@ -12,7 +12,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-<title>앉아가요</title>
+<title>뛰지마세요.금방와요</title>
 <style>
   :root{
     --bg:#0e1726; --card:#172238; --line:#2a3a5c; --ink:#f3f6fc; --sub:#9fb2d4;
@@ -191,13 +191,55 @@
   .stepbar i.on{background:var(--accent);}
   .voice-help{font-size:.82em; color:var(--sub); margin-top:6px;}
   .footer-note{font-size:.78em; color:var(--sub); text-align:center; margin-top:18px; line-height:1.6;}
+
+  /* ===== 시니어: 내 주변 역 도착정보 ===== */
+  .big-cta{font-size:1.25em; padding:22px; border-radius:18px;}
+  .arrive-head{text-align:center; margin:2px 0 12px;}
+  .arrive-stn{font-size:2.1em; font-weight:900; letter-spacing:-.5px;}
+  .walkbox{background:var(--tint); border:1px solid var(--line); border-radius:16px; padding:14px 16px;
+    text-align:center; font-weight:800; font-size:1.05em; margin-bottom:14px;}
+  .walkbox b{color:var(--accent);}
+  .arr-card{border:2px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px; background:var(--card);}
+  .arr-card .dir{font-size:1.25em; font-weight:900; display:flex; align-items:center; gap:8px;}
+  .arr-card .dir .ar{font-size:1.1em;}
+  .arr-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;}
+  .arr-row .where{font-weight:700; color:var(--sub); font-size:.95em;}
+  .arr-min{font-size:2.2em; font-weight:900; line-height:1; white-space:nowrap;}
+  .arr-min small{font-size:.42em; font-weight:800; color:var(--sub); margin-left:4px;}
+  .arr-2nd{margin-top:8px; color:var(--sub); font-weight:700; font-size:.95em;}
+  .arr-none{color:var(--sub); font-weight:700; margin-top:10px;}
+  /* 탈 수 있는 열차: 반짝반짝 + 초록 강조 / 뛰어야 하는 열차: 주황 */
+  .arr-card.catch{border-color:var(--green); box-shadow:0 0 0 3px rgba(39,174,96,.18);}
+  .arr-card.catch .verdict{color:var(--green);}
+  .arr-card.tight{border-color:#f2994a;}
+  .arr-card.tight .verdict{color:#f2994a;}
+  .verdict{margin-top:12px; font-size:1.15em; font-weight:900; display:flex; align-items:center; gap:8px;}
+  .twinkle{animation:twinkle 1s ease-in-out infinite;}
+  @keyframes twinkle{0%,100%{filter:brightness(1);} 50%{filter:brightness(1.6);} }
+  .sparkle{animation:sparklepulse 1.1s ease-in-out infinite;}
+  @keyframes sparklepulse{0%,100%{box-shadow:0 0 0 3px rgba(39,174,96,.18);} 50%{box-shadow:0 0 16px 4px rgba(39,174,96,.55);} }
+  /* 주변역 모달 */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:60; display:flex; align-items:flex-end; justify-content:center;
+    padding:0 0 env(safe-area-inset-bottom);}
+  .modal-card{background:var(--card); border:1px solid var(--line); border-radius:20px 20px 0 0; width:100%; max-width:520px;
+    padding:18px 16px 22px; max-height:84vh; overflow:auto;}
+  @media (min-width:560px){ .modal{align-items:center; padding:16px;} .modal-card{border-radius:20px;} }
+  .nearby-item{width:100%; text-align:left; background:var(--tint); border:2px solid var(--line); color:var(--ink);
+    border-radius:16px; padding:16px; margin-bottom:10px; cursor:pointer; display:flex; align-items:center; gap:12px;}
+  .nearby-item:active{border-color:var(--accent);}
+  .nearby-item .nm{font-size:1.2em; font-weight:900;}
+  .nearby-item .meta{font-size:.85em; color:var(--sub); font-weight:700; margin-top:2px;}
+  .nearby-item .walk{margin-left:auto; text-align:right; font-weight:800; color:var(--accent); white-space:nowrap;}
+  .linetag{display:inline-block; font-size:.72em; font-weight:800; color:#fff; padding:1px 7px; border-radius:999px; margin-right:4px;}
+  .langbtn{justify-content:center;}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">앉아가요<small>편하게 가요</small></div>
+  <div class="logo" id="brandLogo">뛰지마세요<small id="brandSub">금방와요</small></div>
   <div class="spacer"></div>
   <div class="credit">🪙 <b id="creditVal">0</b></div>
+  <button class="toolbtn" id="langBtn" title="Language">🌐</button>
   <button class="toolbtn" id="boardBtn" title="노선도·혼잡도">🗺️</button>
   <button class="toolbtn" id="themeBtn" title="테마">🎨</button>
   <button class="toolbtn" id="fontBtn" title="글씨 크기">가</button>
@@ -225,6 +267,17 @@
   </div>
 </div>
 
+<!-- 언어 선택 패널 -->
+<div id="langPanel" class="card hide" style="margin:12px 16px 0">
+  <h2 style="margin:0 0 8px">🌐 Language / 언어 / 语言 / 言語</h2>
+  <div class="themegrid">
+    <button class="themebtn langbtn" data-lang="ko">🇰🇷 한국어</button>
+    <button class="themebtn langbtn" data-lang="en">🇺🇸 English</button>
+    <button class="themebtn langbtn" data-lang="zh">🇨🇳 中文</button>
+    <button class="themebtn langbtn" data-lang="ja">🇯🇵 日本語</button>
+  </div>
+</div>
+
 <main>
   <!-- STEP LOGIN -->
   <section id="stepLogin" class="card hide">
@@ -244,7 +297,12 @@
 
   <!-- STEP 0: 자동 인식 -->
   <section id="step0" class="card">
-    <h2>📍 지금 탄 열차를 찾는 중…</h2>
+    <!-- 시니어 핵심 진입: 내 주변 역 도착정보 -->
+    <button class="btn primary big-cta" id="seniorEntry" data-i18n="seniorEntry">📍 내 주변 역 · 다음 열차 도착 보기</button>
+    <p class="muted" id="seniorEntryHint" data-i18n="seniorEntryHint" style="margin:8px 2px 16px">내 위치에서 가까운 역을 찾아, 상행·하행 다음 열차가 몇 분 뒤 오는지 큰 글씨로 알려드려요.</p>
+    <hr style="border:none;border-top:1px solid var(--line);margin:6px 0 16px">
+
+    <h2 data-i18n="findTrainTitle">📍 지금 탄 열차를 찾는 중…</h2>
     <p class="muted" id="detectMsg">실시간 열차 위치 정보를 불러오고 있어요.</p>
 
     <div id="linePick">
@@ -283,6 +341,21 @@
 
     <div class="ctx" id="ctxChips" style="margin-top:14px"></div>
     <button class="btn primary hide" id="confirmCtx">맞아요, 시작할게요</button>
+  </section>
+
+  <!-- STEP ARRIVE: 내 주변 역 · 상/하행 도착정보 (시니어 핵심) -->
+  <section id="stepArrive" class="card hide">
+    <button class="btn ghost" id="arriveChangeStation" data-i18n="changeStation" style="margin:0 0 12px">📍 다른 역 고르기</button>
+    <div class="arrive-head">
+      <div class="arrive-stn" id="arriveStn">—</div>
+      <div class="muted" id="arriveSub"></div>
+    </div>
+    <div class="walkbox" id="walkBox"></div>
+    <div id="arriveCards"></div>
+    <p class="muted" id="arriveUpd" style="text-align:center;margin-top:6px"></p>
+    <button class="btn green" id="arriveRefresh" data-i18n="refresh">🔄 새로고침</button>
+    <button class="btn ghost" id="arriveHome" data-i18n="home">🏠 처음으로</button>
+    <p class="voice-help" id="arriveDisc" data-i18n="arriveDisc">도착 정보는 서울시 실시간 데이터예요. 안전하게 천천히 이동하세요.</p>
   </section>
 
   <!-- STEP MODE: 모드 선택 -->
@@ -403,6 +476,16 @@
     실시간 열차 위치는 서울시 공개 API를 사용하며, 좌석 정보는 승객들이 직접 공유합니다.
   </p>
 </main>
+
+<!-- 내 주변 역 선택 팝업 -->
+<div id="nearbyModal" class="modal hide">
+  <div class="modal-card">
+    <h2 id="nearbyTitle" data-i18n="nearbyTitle" style="margin:0 0 6px">📍 가까운 역을 골라주세요</h2>
+    <p class="muted" id="nearbyMsg" style="margin:0 0 12px">내 위치를 확인하는 중…</p>
+    <div id="nearbyList"></div>
+    <button class="btn ghost" id="nearbyClose" data-i18n="close" style="margin-top:10px">닫기</button>
+  </div>
+</div>
 
 <script>
 /* =========================================================================
@@ -1198,7 +1281,7 @@ function couldNotSit(){
 function setStep(i){
   document.querySelectorAll('#stepbar i').forEach((b,idx)=>b.classList.toggle('on',idx<=i));
 }
-const ALL_SECTIONS=['stepLogin','step0','stepMode','stepFleet','step1','step2','step3','stepNo','stepBoard'];
+const ALL_SECTIONS=['stepLogin','step0','stepArrive','stepMode','stepFleet','step1','step2','step3','stepNo','stepBoard'];
 function showSection(id){
   ALL_SECTIONS.forEach(s=>document.getElementById(s).classList.add('hide'));
   document.getElementById(id).classList.remove('hide');
@@ -1496,8 +1579,217 @@ if (clockBarContainer) {
 if (state.trainInterval) clearInterval(state.trainInterval);
 state.trainInterval = setInterval(() => forceUpdateRealtimeData(false), 15000);
 
+// ================= 다국어(i18n) =================
+const I18N = {
+  ko:{ seniorEntry:'📍 내 주변 역 · 다음 열차 도착 보기', seniorEntryHint:'내 위치에서 가까운 역을 찾아, 상행·하행 다음 열차가 몇 분 뒤 오는지 큰 글씨로 알려드려요.',
+    findTrainTitle:'📍 지금 탄 열차를 찾는 중…', changeStation:'📍 다른 역 고르기', refresh:'🔄 새로고침', home:'🏠 처음으로',
+    arriveDisc:'도착 정보는 서울시 실시간 데이터예요. 안전하게 천천히 이동하세요.', nearbyTitle:'📍 가까운 역을 골라주세요', close:'닫기',
+    locating:'내 위치를 확인하는 중…', noGeo:'이 기기는 위치를 지원하지 않아요. 역 이름으로 찾아주세요.', geoDenied:'위치 권한이 없어요. 역 이름으로 찾아주세요.',
+    nearbyMsg:'가장 가까운 역이에요. 골라주세요.', walk:'도보', min:'분', sec:'초', stationSuffix:'역', walkFromYou:'내 위치에서 도보 약',
+    updated:'업데이트', up:'⬆ 상행 방면', down:'⬇ 하행 방면', noInfo:'지금은 도착 정보가 없어요.', nowAt:'현재', towards:'방면',
+    catchV:'천천히 가셔도 탑니다! 뛰지 마세요 🟢 (여유 {m}분)', tightV:'조금 서두르면 타요 🟠 (여유 거의 없음)',
+    missV:'이번 열차는 어려워요. 다음 열차를 타세요 🟢', after:'다음', manualHint:'역 이름을 입력해 찾으세요', searchPh:'예: 강남, 시청…',
+    spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.' },
+  en:{ seniorEntry:'📍 Nearby stations · Next train arrivals', seniorEntryHint:'Find the closest station to you and see, in large text, how many minutes until the next train in each direction.',
+    findTrainTitle:'📍 Finding your train…', changeStation:'📍 Choose another station', refresh:'🔄 Refresh', home:'🏠 Home',
+    arriveDisc:'Arrival times are live Seoul data. Please walk safely, no need to rush.', nearbyTitle:'📍 Choose a nearby station', close:'Close',
+    locating:'Finding your location…', noGeo:'Location not supported. Please search by station name.', geoDenied:'Location permission denied. Search by station name.',
+    nearbyMsg:'Nearest stations. Please choose.', walk:'Walk', min:' min', sec:' sec', stationSuffix:'', walkFromYou:'About a walk of',
+    updated:'Updated', up:'⬆ Up direction', down:'⬇ Down direction', noInfo:'No arrival info right now.', nowAt:'Now at', towards:'toward',
+    catchV:'You can make it at a slow pace! No need to run 🟢 ({m} min to spare)', tightV:'Hurry a little to catch it 🟠 (almost no spare)',
+    missV:'Hard to catch this one. Take the next train 🟢', after:'Next', manualHint:'Type a station name to search', searchPh:'e.g. Gangnam, City Hall…',
+    spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.' },
+  zh:{ seniorEntry:'📍 附近车站 · 下趟列车到达', seniorEntryHint:'查找离您最近的车站，用大字显示上行、下行下趟列车几分钟后到达。',
+    findTrainTitle:'📍 正在查找您的列车…', changeStation:'📍 选择其他车站', refresh:'🔄 刷新', home:'🏠 首页',
+    arriveDisc:'到达信息为首尔实时数据。请慢慢安全地走，不必着急。', nearbyTitle:'📍 请选择附近车站', close:'关闭',
+    locating:'正在确认您的位置…', noGeo:'此设备不支持定位，请按站名搜索。', geoDenied:'没有定位权限，请按站名搜索。',
+    nearbyMsg:'最近的车站，请选择。', walk:'步行', min:'分钟', sec:'秒', stationSuffix:'站', walkFromYou:'从您的位置步行约',
+    updated:'更新', up:'⬆ 上行方向', down:'⬇ 下行方向', noInfo:'目前没有到达信息。', nowAt:'当前', towards:'方向',
+    catchV:'慢慢走也来得及！不用跑 🟢 (富余{m}分钟)', tightV:'稍微快一点就能赶上 🟠 (几乎没有富余)',
+    missV:'这趟很难赶上，请乘坐下一趟 🟢', after:'下趟', manualHint:'输入站名搜索', searchPh:'例：江南、市厅…',
+    spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。' },
+  ja:{ seniorEntry:'📍 近くの駅 · 次の電車の到着', seniorEntryHint:'現在地から近い駅を探し、上り・下りの次の電車が何分後に来るかを大きな文字でお知らせします。',
+    findTrainTitle:'📍 乗っている電車を探しています…', changeStation:'📍 別の駅を選ぶ', refresh:'🔄 更新', home:'🏠 ホーム',
+    arriveDisc:'到着情報はソウルのリアルタイムデータです。急がず安全に移動してください。', nearbyTitle:'📍 近くの駅を選んでください', close:'閉じる',
+    locating:'現在地を確認しています…', noGeo:'この端末は位置情報に未対応です。駅名で検索してください。', geoDenied:'位置情報の許可がありません。駅名で検索してください。',
+    nearbyMsg:'最も近い駅です。選んでください。', walk:'徒歩', min:'分', sec:'秒', stationSuffix:'駅', walkFromYou:'現在地から徒歩約',
+    updated:'更新', up:'⬆ 上り方面', down:'⬇ 下り方面', noInfo:'今は到着情報がありません。', nowAt:'現在', towards:'方面',
+    catchV:'ゆっくり歩いても間に合います！走らないで 🟢 (余裕{m}分)', tightV:'少し急げば間に合います 🟠 (ほぼ余裕なし)',
+    missV:'この電車は難しいです。次の電車に乗ってください 🟢', after:'次', manualHint:'駅名を入力して検索', searchPh:'例: 江南、市庁…',
+    spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。' }
+};
+let currentLang = localStorage.getItem('tj_lang') || 'ko';
+function t(key, vars){
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || (I18N.ko[key]) || key;
+  if(vars) for(const k in vars) s = s.replace('{'+k+'}', vars[k]);
+  return s;
+}
+function applyLang(lang){
+  currentLang = I18N[lang] ? lang : 'ko';
+  localStorage.setItem('tj_lang', currentLang);
+  document.documentElement.lang = currentLang;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('.langbtn').forEach(b=>b.classList.toggle('sel', b.dataset.lang===currentLang));
+  // 도착 화면이 열려 있으면 다시 그려 번역 반영
+  if(!document.getElementById('stepArrive').classList.contains('hide') && _arriveStn) { renderArriveStatic(); renderArrive(); }
+}
+document.getElementById('langBtn').addEventListener('click',()=>document.getElementById('langPanel').classList.toggle('hide'));
+document.querySelectorAll('.langbtn').forEach(b=>b.addEventListener('click',()=>{
+  applyLang(b.dataset.lang); document.getElementById('langPanel').classList.add('hide'); toast(b.textContent.trim());
+}));
+
+// ================= 시니어: 내 주변 역 · 상/하행 도착정보 =================
+const ELDERLY_SPEED = 0.85;   // m/s (노인 평균 도보속도, 보수적)
+const LINE_HEX = {'1호선':'#0052A4','2호선':'#009D3E','3호선':'#EF7C1C','4호선':'#00A5DE','5호선':'#996CAC','6호선':'#CD7C2F','7호선':'#747F00','8호선':'#E6186C','9호선':'#BDB092'};
+let _stations=null, _myPos=null, _arriveStn=null, _arriveTimer=null;
+
+async function loadStations(){
+  if(_stations) return _stations;
+  try{ const r=await fetch('/stations.json'); _stations=await r.json(); }catch(e){ _stations=[]; }
+  return _stations;
+}
+function haversine(la1,lo1,la2,lo2){ const R=6371000,toR=x=>x*Math.PI/180; const dLa=toR(la2-la1),dLo=toR(lo2-lo1);
+  const s=Math.sin(dLa/2)**2+Math.cos(toR(la1))*Math.cos(toR(la2))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(s)); }
+function walkSec(m){ return Math.round(m/ELDERLY_SPEED); }
+function walkMin(m){ return Math.max(1, Math.round(m/ELDERLY_SPEED/60)); }
+function lineTags(lines){ return lines.map(l=>`<span class="linetag" style="background:${LINE_HEX[l]||'#46587c'}">${l}</span>`).join(' '); }
+
+document.getElementById('seniorEntry').addEventListener('click', openNearby);
+document.getElementById('arriveChangeStation').addEventListener('click', openNearby);
+document.getElementById('nearbyClose').addEventListener('click', ()=>document.getElementById('nearbyModal').classList.add('hide'));
+document.getElementById('arriveRefresh').addEventListener('click', ()=>{ renderArrive(); toast(t('refresh')); });
+document.getElementById('arriveHome').addEventListener('click', ()=>{ if(_arriveTimer) clearInterval(_arriveTimer); showSection('step0'); });
+
+async function openNearby(){
+  const modal=document.getElementById('nearbyModal');
+  const msg=document.getElementById('nearbyMsg');
+  document.getElementById('nearbyList').innerHTML='';
+  msg.textContent=t('locating'); modal.classList.remove('hide');
+  await loadStations();
+  if(!navigator.geolocation){ msg.textContent=t('noGeo'); fillNearbyManual(); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    _myPos={lat:pos.coords.latitude, lng:pos.coords.longitude};
+    renderNearbyList();
+  }, ()=>{ msg.textContent=t('geoDenied'); fillNearbyManual(); },
+  {enableHighAccuracy:true, timeout:8000, maximumAge:30000});
+}
+function renderNearbyList(){
+  const listEl=document.getElementById('nearbyList');
+  document.getElementById('nearbyMsg').textContent=t('nearbyMsg');
+  const near=_stations.map(s=>({...s, dist:haversine(_myPos.lat,_myPos.lng,s.lat,s.lng)}))
+    .sort((a,b)=>a.dist-b.dist).slice(0,6);
+  listEl.innerHTML='';
+  near.forEach(s=>{
+    const b=document.createElement('button'); b.className='nearby-item';
+    b.innerHTML=`<div><div class="nm">${s.name}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`
+      +`<div class="walk">${t('walk')} ${walkMin(s.dist)}${t('min')}<br><span style="font-weight:600;color:var(--sub)">${Math.round(s.dist)}m</span></div>`;
+    b.addEventListener('click',()=>{ document.getElementById('nearbyModal').classList.add('hide'); openArrive(s); });
+    listEl.appendChild(b);
+  });
+}
+// 위치 거부/미지원: 역 이름 검색으로 대체
+function fillNearbyManual(){
+  const listEl=document.getElementById('nearbyList');
+  listEl.innerHTML='';
+  const inp=document.createElement('input'); inp.type='search'; inp.placeholder=t('searchPh');
+  inp.style.cssText='width:100%;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--tint);color:var(--ink);font-size:1.05em;font-weight:700;margin-bottom:10px';
+  const out=document.createElement('div'); listEl.appendChild(inp); listEl.appendChild(out);
+  const draw=(q)=>{
+    out.innerHTML='';
+    const res=(_stations||[]).filter(s=>s.name.includes(q)).slice(0,8);
+    res.forEach(s=>{
+      const b=document.createElement('button'); b.className='nearby-item';
+      b.innerHTML=`<div><div class="nm">${s.name}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`;
+      b.addEventListener('click',()=>{ s.dist=null; document.getElementById('nearbyModal').classList.add('hide'); openArrive(s); });
+      out.appendChild(b);
+    });
+  };
+  inp.addEventListener('input', e=>draw(e.target.value.trim()));
+  inp.focus();
+}
+
+function renderArriveStatic(){
+  document.getElementById('arriveStn').textContent=_arriveStn.name+t('stationSuffix');
+  document.getElementById('arriveSub').innerHTML=lineTags(_arriveStn.lines);
+  const wb=document.getElementById('walkBox');
+  if(_myPos && _arriveStn.dist!=null){ wb.style.display=''; wb.innerHTML=`🚶 ${t('walkFromYou')} <b>${walkMin(_arriveStn.dist)}${t('min')}</b> (${Math.round(_arriveStn.dist)}m)`; }
+  else { wb.style.display='none'; }
+}
+async function openArrive(stn){
+  _arriveStn=stn;
+  if(stn.lines && stn.lines.length) state.line=stn.lines.find(l=>LINE_HEX[l])||stn.lines[0];
+  renderArriveStatic();
+  enableSeniorComfort();
+  showSection('stepArrive');
+  await renderArrive();
+  if(_arriveTimer) clearInterval(_arriveTimer);
+  _arriveTimer=setInterval(renderArrive, 15000);
+  speak(t('spkArrive',{stn:_arriveStn.name, u:'', d:''}));
+}
+function parseEta(a){ let s=Number(a.barvlDt); if(!s||s<0) s=30; return s; }
+function etaText(sec){ const m=Math.floor(sec/60), s=sec%60; return m>0 ? (m+t('min')) : (s+t('sec')); }
+function buildDirCard(dirKey, arr){
+  const card=document.createElement('div'); card.className='arr-card';
+  const head=document.createElement('div'); head.className='dir'; head.textContent=t(dirKey);
+  card.appendChild(head);
+  if(!arr.length){ const n=document.createElement('div'); n.className='arr-none'; n.textContent=t('noInfo'); card.appendChild(n); return card; }
+  const sorted=arr.map(a=>({a,eta:parseEta(a)})).sort((x,y)=>x.eta-y.eta);
+  const first=sorted[0], second=sorted[1];
+  // 도보 대비 탑승 가능 판정
+  let catchIdx=-1, spare=0;
+  if(_myPos && _arriveStn.dist!=null){
+    const w=walkSec(_arriveStn.dist), buf=60;
+    if(first.eta>=w+buf){ catchIdx=0; spare=Math.round((first.eta-w)/60); }
+    else if(second && second.eta>=w+buf){ catchIdx=1; spare=Math.round((second.eta-w)/60); }
+  }
+  // 첫 열차
+  const r1=document.createElement('div'); r1.className='arr-row';
+  r1.innerHTML=`<div><div class="where">${(first.a.trainLineNm||'').split(' - ')[0]||''}</div>`
+    +`<div class="where">${t('nowAt')} ${(first.a.arvlMsg3||'').replace(/역$/,'')}</div></div>`
+    +`<div class="arr-min">${etaText(first.eta)}<small>${t('after')==='Next'?'':''}</small></div>`;
+  card.appendChild(r1);
+  if(second){ const r2=document.createElement('div'); r2.className='arr-2nd';
+    r2.textContent=`${t('after')}: ${etaText(second.eta)} · ${(second.a.trainLineNm||'').split(' - ')[0]||''}`; card.appendChild(r2); }
+  // 판정 표시
+  if(catchIdx>=0){
+    card.classList.add('catch'); card.classList.add('sparkle');
+    if(catchIdx===0){ r1.classList.add('twinkle');
+      const v=document.createElement('div'); v.className='verdict'; v.textContent='✨ '+t('catchV',{m:spare}); card.appendChild(v);
+    } else {
+      const v=document.createElement('div'); v.className='verdict'; v.textContent='✨ '+t('missV'); card.appendChild(v);
+    }
+  } else if(_myPos && _arriveStn.dist!=null){
+    card.classList.add('tight');
+    const v=document.createElement('div'); v.className='verdict'; v.textContent=t('tightV'); card.appendChild(v);
+  }
+  return card;
+}
+async function renderArrive(){
+  if(!_arriveStn) return;
+  const box=document.getElementById('arriveCards');
+  let list=[];
+  try{ list=await fetchArrival(_arriveStn.name); }catch(e){}
+  setUpdateStamp(list.length>0, null);
+  document.getElementById('arriveUpd').textContent=`${t('updated')} ${fmtTime(new Date())}`;
+  const up=[], down=[];
+  list.forEach(a=>{ const ud=a.updnLine||''; (ud.indexOf('상')>=0||ud.indexOf('내선')>=0?up:down).push(a); });
+  box.innerHTML='';
+  const cUp=buildDirCard('up', up), cDown=buildDirCard('down', down);
+  box.appendChild(cUp); box.appendChild(cDown);
+  // 음성: 다음 열차 + 뛰지마세요
+  const nx=arr=>{ if(!arr.length) return t('noInfo'); const s=arr.map(parseEta).sort((a,b)=>a-b)[0]; return etaText(s); };
+  speak(t('spkArrive',{stn:_arriveStn.name, u:nx(up), d:nx(down)}));
+  if(document.querySelector('.arr-card.catch')) speak(t('spkRun'));
+}
+// 시니어 편의: 큰 글씨 + 음성 자동 ON
+function enableSeniorComfort(){
+  if(state.fontStep<1){ state.fontStep=1; document.documentElement.style.setProperty('--fs', fontScales[1]); }
+  if(!state.voice){ state.voice=true; document.getElementById('voiceBtn').classList.add('on'); }
+}
+
 // ---- 13. 시작 ----
 applyTheme(localStorage.getItem('ag_theme')||'dark');
+applyLang(currentLang);
 document.getElementById('creditVal').textContent = state.credits;
 window.agShowLogin();
 </script>

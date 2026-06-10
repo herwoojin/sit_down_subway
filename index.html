@@ -362,6 +362,12 @@
     <div class="walkbox" id="walkBox"></div>
     <div id="arriveCards"></div>
 
+    <!-- 새로고침/처음으로: 지도 노선도 바로 위에 배치 -->
+    <div style="display:flex; gap:8px; margin:8px 0 2px">
+      <button class="btn green" id="arriveRefresh" data-i18n="refresh" style="flex:1; margin:0">🔄 새로고침</button>
+      <button class="btn ghost" id="arriveHome" data-i18n="home" style="flex:1; margin:0">🏠 처음으로</button>
+    </div>
+
     <!-- 노선도: 선택역(흰 점) 기준으로 다가오는 열차 + 남은시간 -->
     <p class="muted" id="arriveMapHint" data-i18n="arriveMapHint" style="margin:8px 2px 6px">🗺️ 지도에서 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.</p>
     <div id="arriveMapWrap">
@@ -369,8 +375,6 @@
     </div>
 
     <p class="muted" id="arriveUpd" style="text-align:center;margin-top:6px"></p>
-    <button class="btn green" id="arriveRefresh" data-i18n="refresh">🔄 새로고침</button>
-    <button class="btn ghost" id="arriveHome" data-i18n="home">🏠 처음으로</button>
     <p class="voice-help" id="arriveDisc" data-i18n="arriveDisc">도착 정보는 서울시 실시간 데이터예요. 안전하게 천천히 이동하세요.</p>
   </section>
 
@@ -1735,7 +1739,7 @@ function lineTags(lines){ return lines.map(l=>`<span class="linetag" style="back
 document.getElementById('seniorEntry').addEventListener('click', openNearby);
 document.getElementById('arriveChangeStation').addEventListener('click', openNearby);
 document.getElementById('nearbyClose').addEventListener('click', ()=>document.getElementById('nearbyModal').classList.add('hide'));
-document.getElementById('arriveRefresh').addEventListener('click', ()=>{ renderArrive(); toast(t('refresh')); });
+document.getElementById('arriveRefresh').addEventListener('click', ()=>{ renderArrive({freshMap:true}); toast(t('refresh')); });
 document.getElementById('arriveHome').addEventListener('click', ()=>{
   if(_arriveTimer){ clearInterval(_arriveTimer); _arriveTimer=null; }
   resetAll(); // 첫 화면(step0)으로 깨끗이 복귀 → 노선도 새로 로드, 다시 주변역 선택 가능
@@ -1847,7 +1851,7 @@ async function openArrive(stn){
   showSection('stepArrive');
   await renderArrive();
   if(_arriveTimer) clearInterval(_arriveTimer);
-  _arriveTimer=setInterval(renderArrive, 15000);
+  _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), 15000);
   speak(t('spkArrive',{stn:_arriveStn.name, u:'', d:''}));
 }
 function parseEta(a){ let s=Number(a.barvlDt); if(!s||s<0) s=30; return s; }
@@ -1888,7 +1892,8 @@ function buildDirCard(dirKey, arr){
   }
   return card;
 }
-async function renderArrive(){
+async function renderArrive(opts){
+  opts=opts||{};
   if(!_arriveStn) return;
   const box=document.getElementById('arriveCards');
   let list=[];
@@ -1903,19 +1908,19 @@ async function renderArrive(){
   // 지도: 이 역으로 오는 열차에 남은시간 표기
   const etaByTrain={};
   list.forEach(a=>{ const no=String(a.btrainNo||'').trim(); if(no) etaByTrain[no]=parseEta(a); });
-  renderArriveMap(etaByTrain);
+  renderArriveMap(etaByTrain, !!opts.freshMap);
   // 음성: 다음 열차 + 뛰지마세요
   const nx=arr=>{ if(!arr.length) return t('noInfo'); const s=arr.map(parseEta).sort((a,b)=>a-b)[0]; return etaText(s); };
   speak(t('spkArrive',{stn:_arriveStn.name, u:nx(up), d:nx(down)}));
   if(document.querySelector('.arr-card.catch')) speak(t('spkRun'));
 }
 // 도착화면 노선도: 선택역 기준 전체 열차 위치 + 다가오는 열차 남은시간(노란 테두리)
-async function renderArriveMap(etaByTrain){
-  // 라이브 지도와 '같은 스냅샷'을 재사용해 번호 불일치(바뀌어 보임)를 방지.
-  // 같은 노선이면 _mapList 재사용, 다른 노선이면 새로 불러옴.
+async function renderArriveMap(etaByTrain, fresh){
+  // 첫 진입(fresh=false): 라이브 지도와 같은 스냅샷 재사용(번호 불일치 방지).
+  // 새로고침/자동갱신(fresh=true): 새 위치를 받아 지도도 함께 업데이트.
   let base;
-  if(_mapList && _mapList.length && _mapListLine===state.line){ base=_mapList; }
-  else { try{ base=await fetchTrainPosition(state.line); }catch(e){ base=_mapList||[]; } }
+  if(!fresh && _mapList && _mapList.length && _mapListLine===state.line){ base=_mapList; }
+  else { try{ base=await fetchTrainPosition(state.line); _mapList=base; _mapListLine=state.line; }catch(e){ base=_mapList||[]; } }
   // _mapList(라이브) 오염 방지를 위해 복제 후 도착 ETA만 부여
   const positions=(base||[]).map(p=>Object.assign({}, p));
   positions.forEach(p=>{ const e=etaByTrain[String(p.trainNo)]; if(e!=null) p.__eta=e; });

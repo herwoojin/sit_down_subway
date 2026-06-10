@@ -352,6 +352,13 @@
     </div>
     <div class="walkbox" id="walkBox"></div>
     <div id="arriveCards"></div>
+
+    <!-- 노선도: 선택역(흰 점) 기준으로 다가오는 열차 + 남은시간 -->
+    <p class="muted" id="arriveMapHint" data-i18n="arriveMapHint" style="margin:8px 2px 6px">🗺️ 지도에서 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.</p>
+    <div id="arriveMapWrap">
+      <div class="linemap" id="arriveMap"></div>
+    </div>
+
     <p class="muted" id="arriveUpd" style="text-align:center;margin-top:6px"></p>
     <button class="btn green" id="arriveRefresh" data-i18n="refresh">🔄 새로고침</button>
     <button class="btn ghost" id="arriveHome" data-i18n="home">🏠 처음으로</button>
@@ -988,23 +995,26 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
     else if (moveDir === 'up') arrow = '▲';
     else if (moveDir === 'down') arrow = '▼';
     
-    const label = (moveDir==='right') ? (t.trainNo + ' ' + arrow) : (arrow + ' ' + t.trainNo);
-    const wpx = label.length*8.2+16; 
-    
+    let label = (moveDir==='right') ? (t.trainNo + ' ' + arrow) : (arrow + ' ' + t.trainNo);
+    // 도착화면: 선택역으로 오는 열차에는 남은 시간 표기
+    const hasEta = (t.__eta!=null);
+    if (hasEta) label += ' · ' + etaText(t.__eta);
+    const wpx = label.length*8.2+16;
+
     const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
     
     // Ghost pin: opacity: 0.3, interaction disabled
     if (t.isGhost) {
       g.setAttribute('opacity', 0.3);
       g.style.pointerEvents = 'none';
-    } else {
+    } else if (targetMapId === 'lineMap') {
       g.style.cursor='pointer';
       g.addEventListener('click',()=>selectTrain(t));
-    }
-    
-    // 열차 핀: 잘 보이도록 단색 알약(둥근 사각). 선택 시 노란색 + 흰 테두리.
+    } // 도착화면(arriveMap)은 정보 표시 전용(클릭으로 참여 플로우 진입 안 함)
+
+    // 열차 핀: 잘 보이도록 단색 알약(둥근 사각). 선택 시 노란색, 도착예정(eta) 열차는 노란 테두리 강조.
     g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
-      fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : '#0b1730', 'stroke-width': sel?2.5:2}));
+      fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730'), 'stroke-width': (sel||hasEta)?3:2}));
 
     // 텍스트 대비 색상
     let textCol = '#fff';
@@ -1283,6 +1293,8 @@ function setStep(i){
 }
 const ALL_SECTIONS=['stepLogin','step0','stepArrive','stepMode','stepFleet','step1','step2','step3','stepNo','stepBoard'];
 function showSection(id){
+  // 도착화면을 벗어나면 자동 갱신 타이머 정리(다른 화면 오염 방지)
+  if(id!=='stepArrive' && typeof _arriveTimer!=='undefined' && _arriveTimer){ clearInterval(_arriveTimer); _arriveTimer=null; }
   ALL_SECTIONS.forEach(s=>document.getElementById(s).classList.add('hide'));
   document.getElementById(id).classList.remove('hide');
   // 진행 표시줄은 본 흐름에서만
@@ -1589,7 +1601,8 @@ const I18N = {
     updated:'업데이트', up:'⬆ 상행 방면', down:'⬇ 하행 방면', noInfo:'지금은 도착 정보가 없어요.', nowAt:'현재', towards:'방면',
     catchV:'천천히 가셔도 탑니다! 뛰지 마세요 🟢 (여유 {m}분)', tightV:'조금 서두르면 타요 🟠 (여유 거의 없음)',
     missV:'이번 열차는 어려워요. 다음 열차를 타세요 🟢', after:'다음', manualHint:'역 이름을 입력해 찾으세요', searchPh:'예: 강남, 시청…',
-    spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.' },
+    spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.',
+    arriveMapHint:'🗺️ 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.' },
   en:{ seniorEntry:'📍 Nearby stations · Next train arrivals', seniorEntryHint:'Find the closest station to you and see, in large text, how many minutes until the next train in each direction.',
     findTrainTitle:'📍 Finding your train…', changeStation:'📍 Choose another station', refresh:'🔄 Refresh', home:'🏠 Home',
     arriveDisc:'Arrival times are live Seoul data. Please walk safely, no need to rush.', nearbyTitle:'📍 Choose a nearby station', close:'Close',
@@ -1598,7 +1611,8 @@ const I18N = {
     updated:'Updated', up:'⬆ Up direction', down:'⬇ Down direction', noInfo:'No arrival info right now.', nowAt:'Now at', towards:'toward',
     catchV:'You can make it at a slow pace! No need to run 🟢 ({m} min to spare)', tightV:'Hurry a little to catch it 🟠 (almost no spare)',
     missV:'Hard to catch this one. Take the next train 🟢', after:'Next', manualHint:'Type a station name to search', searchPh:'e.g. Gangnam, City Hall…',
-    spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.' },
+    spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.',
+    arriveMapHint:'🗺️ The white dot is your station; trains with a yellow border are heading to it.' },
   zh:{ seniorEntry:'📍 附近车站 · 下趟列车到达', seniorEntryHint:'查找离您最近的车站，用大字显示上行、下行下趟列车几分钟后到达。',
     findTrainTitle:'📍 正在查找您的列车…', changeStation:'📍 选择其他车站', refresh:'🔄 刷新', home:'🏠 首页',
     arriveDisc:'到达信息为首尔实时数据。请慢慢安全地走，不必着急。', nearbyTitle:'📍 请选择附近车站', close:'关闭',
@@ -1607,7 +1621,8 @@ const I18N = {
     updated:'更新', up:'⬆ 上行方向', down:'⬇ 下行方向', noInfo:'目前没有到达信息。', nowAt:'当前', towards:'方向',
     catchV:'慢慢走也来得及！不用跑 🟢 (富余{m}分钟)', tightV:'稍微快一点就能赶上 🟠 (几乎没有富余)',
     missV:'这趟很难赶上，请乘坐下一趟 🟢', after:'下趟', manualHint:'输入站名搜索', searchPh:'例：江南、市厅…',
-    spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。' },
+    spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。',
+    arriveMapHint:'🗺️ 白点是您选择的车站，黄色边框的列车正驶向该站。' },
   ja:{ seniorEntry:'📍 近くの駅 · 次の電車の到着', seniorEntryHint:'現在地から近い駅を探し、上り・下りの次の電車が何分後に来るかを大きな文字でお知らせします。',
     findTrainTitle:'📍 乗っている電車を探しています…', changeStation:'📍 別の駅を選ぶ', refresh:'🔄 更新', home:'🏠 ホーム',
     arriveDisc:'到着情報はソウルのリアルタイムデータです。急がず安全に移動してください。', nearbyTitle:'📍 近くの駅を選んでください', close:'閉じる',
@@ -1616,7 +1631,8 @@ const I18N = {
     updated:'更新', up:'⬆ 上り方面', down:'⬇ 下り方面', noInfo:'今は到着情報がありません。', nowAt:'現在', towards:'方面',
     catchV:'ゆっくり歩いても間に合います！走らないで 🟢 (余裕{m}分)', tightV:'少し急げば間に合います 🟠 (ほぼ余裕なし)',
     missV:'この電車は難しいです。次の電車に乗ってください 🟢', after:'次', manualHint:'駅名を入力して検索', searchPh:'例: 江南、市庁…',
-    spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。' }
+    spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。',
+    arriveMapHint:'🗺️ 白い点が選んだ駅、黄色い枠の電車がこの駅に向かう電車です。' }
 };
 let currentLang = localStorage.getItem('tj_lang') || 'ko';
 function t(key, vars){
@@ -1658,7 +1674,10 @@ document.getElementById('seniorEntry').addEventListener('click', openNearby);
 document.getElementById('arriveChangeStation').addEventListener('click', openNearby);
 document.getElementById('nearbyClose').addEventListener('click', ()=>document.getElementById('nearbyModal').classList.add('hide'));
 document.getElementById('arriveRefresh').addEventListener('click', ()=>{ renderArrive(); toast(t('refresh')); });
-document.getElementById('arriveHome').addEventListener('click', ()=>{ if(_arriveTimer) clearInterval(_arriveTimer); showSection('step0'); });
+document.getElementById('arriveHome').addEventListener('click', ()=>{
+  if(_arriveTimer){ clearInterval(_arriveTimer); _arriveTimer=null; }
+  resetAll(); // 첫 화면(step0)으로 깨끗이 복귀 → 노선도 새로 로드, 다시 주변역 선택 가능
+});
 
 async function openNearby(){
   const modal=document.getElementById('nearbyModal');
@@ -1718,6 +1737,7 @@ function renderArriveStatic(){
 async function openArrive(stn){
   _arriveStn=stn;
   if(stn.lines && stn.lines.length) state.line=stn.lines.find(l=>LINE_HEX[l])||stn.lines[0];
+  state.curStation = stn.name;   // 지도에서 선택역(흰 점)으로 강조
   renderArriveStatic();
   enableSeniorComfort();
   showSection('stepArrive');
@@ -1776,10 +1796,21 @@ async function renderArrive(){
   box.innerHTML='';
   const cUp=buildDirCard('up', up), cDown=buildDirCard('down', down);
   box.appendChild(cUp); box.appendChild(cDown);
+  // 지도: 이 역으로 오는 열차에 남은시간 표기
+  const etaByTrain={};
+  list.forEach(a=>{ const no=String(a.btrainNo||'').trim(); if(no) etaByTrain[no]=parseEta(a); });
+  renderArriveMap(etaByTrain);
   // 음성: 다음 열차 + 뛰지마세요
   const nx=arr=>{ if(!arr.length) return t('noInfo'); const s=arr.map(parseEta).sort((a,b)=>a-b)[0]; return etaText(s); };
   speak(t('spkArrive',{stn:_arriveStn.name, u:nx(up), d:nx(down)}));
   if(document.querySelector('.arr-card.catch')) speak(t('spkRun'));
+}
+// 도착화면 노선도: 선택역 기준 전체 열차 위치 + 다가오는 열차 남은시간(노란 테두리)
+async function renderArriveMap(etaByTrain){
+  let positions=[];
+  try{ positions=await fetchTrainPosition(state.line); }catch(e){}
+  positions.forEach(p=>{ const e=etaByTrain[String(p.trainNo)]; if(e!=null) p.__eta=e; });
+  renderTrainMap(positions, 'arriveMap', false);
 }
 // 시니어 편의: 큰 글씨 + 음성 자동 ON
 function enableSeniorComfort(){

@@ -1669,8 +1669,12 @@ function applyLang(lang){
   document.documentElement.lang = currentLang;
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('.langbtn').forEach(b=>b.classList.toggle('sel', b.dataset.lang===currentLang));
-  // 도착 화면이 열려 있으면 다시 그려 번역 반영
+  // 열려 있는 화면들 다시 그려 번역 반영
   if(!document.getElementById('stepArrive').classList.contains('hide') && _arriveStn) { renderArriveStatic(); renderArrive(); }
+  const sp=document.getElementById('stepStationPick');
+  if(sp && !sp.classList.contains('hide')){ const sel=document.querySelector('#pickLineChips .chip.sel'); const ln=sel?sel.textContent:'2호선'; renderPickLineChips(ln); renderRoute(ln); }
+  const nm=document.getElementById('nearbyModal');
+  if(nm && !nm.classList.contains('hide') && _myPos && _stations){ renderNearbyList(); }
 }
 document.getElementById('langBtn').addEventListener('click',()=>document.getElementById('langPanel').classList.toggle('hide'));
 document.querySelectorAll('.langbtn').forEach(b=>b.addEventListener('click',()=>{
@@ -1691,7 +1695,39 @@ function haversine(la1,lo1,la2,lo2){ const R=6371000,toR=x=>x*Math.PI/180; const
   const s=Math.sin(dLa/2)**2+Math.cos(toR(la1))*Math.cos(toR(la2))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(s)); }
 function walkSec(m){ return Math.round(m/ELDERLY_SPEED); }
 function walkMin(m){ return Math.max(1, Math.round(m/ELDERLY_SPEED/60)); }
-function lineTags(lines){ return lines.map(l=>`<span class="linetag" style="background:${LINE_HEX[l]||'#46587c'}">${l}</span>`).join(' '); }
+// 역명 로마자 변환(개정 로마자 표기) — 비한국어 모드에서 한글 대신 표기
+function romanize(str){
+  const CHO=['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+  const JUNG=['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+  const JONG=['','k','k','k','n','n','n','t','l','k','m','l','l','l','l','l','m','p','p','t','t','ng','t','t','k','t','p','t'];      // 대표 종성음
+  const LINK=['','g','kk','ks','n','nj','nh','d','l','lg','lm','lb','ls','lt','lp','lh','m','b','ps','s','ss','ng','j','ch','k','t','p','h']; // 연음(다음 ㅇ초성)
+  const a=[...String(str)]; let out='';
+  for(let i=0;i<a.length;i++){
+    const code=a[i].charCodeAt(0)-0xAC00;
+    if(code<0||code>11171){ out+=a[i]; continue; }
+    const cho=Math.floor(code/588), jung=Math.floor((code%588)/28), jong=code%28;
+    out+=CHO[cho]+JUNG[jung];
+    if(jong){
+      const nc=a[i+1]?a[i+1].charCodeAt(0)-0xAC00:-1;
+      const linked = nc>=0&&nc<=11171 && Math.floor(nc/588)===11; // 다음 글자 초성이 ㅇ
+      out += linked ? LINK[jong] : JONG[jong];
+    }
+  }
+  out=out.replace(/nr/g,'ll').replace(/lr/g,'ll').replace(/ln/g,'ll')
+         .replace(/ngr/g,'ngn').replace(/kr/g,'ngn').replace(/tr/g,'nn')
+         .replace(/pr/g,'mn').replace(/mr/g,'mn').replace(/br/g,'mn');
+  return out.charAt(0).toUpperCase()+out.slice(1);
+}
+// 표시용 역명: 한국어면 그대로, 그 외 언어는 로마자
+function nameFor(s){ const k=(typeof s==='string')?s:(s&&s.name)||''; return currentLang==='ko' ? k : romanize(k); }
+function lineLabel(l){
+  const num=String(l).replace('호선','');
+  if(currentLang==='en') return 'Line '+num;
+  if(currentLang==='zh') return num+'号线';
+  if(currentLang==='ja') return num+'号線';
+  return l;
+}
+function lineTags(lines){ return lines.map(l=>`<span class="linetag" style="background:${LINE_HEX[l]||'#46587c'}">${lineLabel(l)}</span>`).join(' '); }
 
 document.getElementById('seniorEntry').addEventListener('click', openNearby);
 document.getElementById('arriveChangeStation').addEventListener('click', openNearby);
@@ -1723,7 +1759,7 @@ function renderNearbyList(){
   listEl.innerHTML='';
   near.forEach(s=>{
     const b=document.createElement('button'); b.className='nearby-item';
-    b.innerHTML=`<div><div class="nm">${s.name}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`
+    b.innerHTML=`<div><div class="nm">${nameFor(s)}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`
       +`<div class="walk">${t('walk')} ${walkMin(s.dist)}${t('min')}<br><span style="font-weight:600;color:var(--sub)">${Math.round(s.dist)}m</span></div>`;
     b.addEventListener('click',()=>{ document.getElementById('nearbyModal').classList.add('hide'); openArrive(s); });
     listEl.appendChild(b);
@@ -1741,7 +1777,7 @@ function fillNearbyManual(){
     const res=(_stations||[]).filter(s=>s.name.includes(q)).slice(0,8);
     res.forEach(s=>{
       const b=document.createElement('button'); b.className='nearby-item';
-      b.innerHTML=`<div><div class="nm">${s.name}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`;
+      b.innerHTML=`<div><div class="nm">${nameFor(s)}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines)}</div></div>`;
       b.addEventListener('click',()=>{ s.dist=null; document.getElementById('nearbyModal').classList.add('hide'); openArrive(s); });
       out.appendChild(b);
     });
@@ -1780,7 +1816,7 @@ function renderRoute(line){
   if(!sts.length){ box.innerHTML=`<p class="muted">${t('noInfo')}</p>`; return; }
   sts.forEach(s=>{
     const b=document.createElement('button'); b.className='routestop';
-    b.innerHTML=`<span class="dot"></span><span class="rn">${s.name}${t('stationSuffix')}</span>`;
+    b.innerHTML=`<span class="dot"></span><span class="rn">${nameFor(s)}${t('stationSuffix')}</span>`;
     b.addEventListener('click',()=>pickStationByName(s.name));
     box.appendChild(b);
   });
@@ -1793,7 +1829,7 @@ function pickStationByName(name){
 }
 
 function renderArriveStatic(){
-  document.getElementById('arriveStn').textContent=_arriveStn.name+t('stationSuffix');
+  document.getElementById('arriveStn').textContent=nameFor(_arriveStn)+t('stationSuffix');
   document.getElementById('arriveSub').innerHTML=lineTags(_arriveStn.lines);
   const wb=document.getElementById('walkBox');
   if(_myPos && _arriveStn.dist!=null){ wb.style.display=''; wb.innerHTML=`🚶 ${t('walkFromYou')} <b>${walkMin(_arriveStn.dist)}${t('min')}</b> (${Math.round(_arriveStn.dist)}m)`; }
@@ -1830,7 +1866,7 @@ function buildDirCard(dirKey, arr){
   // 첫 열차
   const r1=document.createElement('div'); r1.className='arr-row';
   r1.innerHTML=`<div><div class="where">${(first.a.trainLineNm||'').split(' - ')[0]||''}</div>`
-    +`<div class="where">${t('nowAt')} ${(first.a.arvlMsg3||'').replace(/역$/,'')}</div></div>`
+    +`<div class="where">${t('nowAt')} ${nameFor((first.a.arvlMsg3||'').replace(/역$/,''))}</div></div>`
     +`<div class="arr-min">${etaText(first.eta)}<small>${t('after')==='Next'?'':''}</small></div>`;
   card.appendChild(r1);
   if(second){ const r2=document.createElement('div'); r2.className='arr-2nd';

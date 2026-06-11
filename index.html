@@ -1177,7 +1177,7 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
     let label = (moveDir==='right') ? (t.trainNo + ' ' + arrow) : (arrow + ' ' + t.trainNo);
     // 도착화면: 선택역으로 오는 열차에는 남은 시간 표기
     const hasEta = (t.__eta!=null);
-    if (hasEta) label += ' · ' + etaText(t.__eta);
+    if (hasEta) label += ' · ' + t.__eta;   // __eta는 짧은 문자열(도착/진입/N정거장/N분)
     const wpx = label.length*8.2+16;
 
     const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
@@ -1821,7 +1821,7 @@ const I18N = {
     missV:'이번 열차는 어려워요. 다음 열차를 타세요 🟢', after:'다음', manualHint:'역 이름을 입력해 찾으세요', searchPh:'예: 강남, 시청…',
     spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.',
     arriveMapHint:'🗺️ 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.',
-    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.', favTitle:'⭐ 즐겨찾는 역', apiTitle:'내 실시간 API 키', favEmpty:'아직 즐겨찾는 역이 없어요. 도착화면에서 ☆를 눌러 추가하세요.', favAdded:'즐겨찾기에 추가했어요', favRemoved:'즐겨찾기에서 뺐어요', favLocalOnly:'구글 로그인하면 즐겨찾기가 계정에 저장돼요.' },
+    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.', favTitle:'⭐ 즐겨찾는 역', apiTitle:'내 실시간 API 키', arriving:'곧 도착', entering:'진입 중', departing:'출발', stopsAway:'정거장 전', stopShort:'정거장', favEmpty:'아직 즐겨찾는 역이 없어요. 도착화면에서 ☆를 눌러 추가하세요.', favAdded:'즐겨찾기에 추가했어요', favRemoved:'즐겨찾기에서 뺐어요', favLocalOnly:'구글 로그인하면 즐겨찾기가 계정에 저장돼요.' },
   en:{ seniorEntry:'📍 Nearby stations · Next train arrivals', seniorEntryHint:'Find the closest station to you and see, in large text, how many minutes until the next train in each direction.',
     findTrainTitle:'📍 Finding your train…', changeStation:'📍 Choose another station', refresh:'🔄 Refresh', home:'🏠 Home',
     arriveDisc:'Arrival times are live Seoul data. Please walk safely, no need to rush.', nearbyTitle:'📍 Choose a nearby station', close:'Close',
@@ -1832,7 +1832,7 @@ const I18N = {
     missV:'Hard to catch this one. Take the next train 🟢', after:'Next', manualHint:'Type a station name to search', searchPh:'e.g. Gangnam, City Hall…',
     spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.',
     arriveMapHint:'🗺️ The white dot is your station; trains with a yellow border are heading to it.',
-    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.', favTitle:'⭐ Favorite stations', apiTitle:'My realtime API key', favEmpty:'No favorites yet. Tap ☆ on the arrival screen to add.', favAdded:'Added to favorites', favRemoved:'Removed from favorites', favLocalOnly:'Sign in with Google to save favorites to your account.' },
+    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.', favTitle:'⭐ Favorite stations', apiTitle:'My realtime API key', arriving:'Arriving', entering:'Entering', departing:'Departed', stopsAway:' stops away', stopShort:' stops', favEmpty:'No favorites yet. Tap ☆ on the arrival screen to add.', favAdded:'Added to favorites', favRemoved:'Removed from favorites', favLocalOnly:'Sign in with Google to save favorites to your account.' },
   zh:{ seniorEntry:'📍 附近车站 · 下趟列车到达', seniorEntryHint:'查找离您最近的车站，用大字显示上行、下行下趟列车几分钟后到达。',
     findTrainTitle:'📍 正在查找您的列车…', changeStation:'📍 选择其他车站', refresh:'🔄 刷新', home:'🏠 首页',
     arriveDisc:'到达信息为首尔实时数据。请慢慢安全地走，不必着急。', nearbyTitle:'📍 请选择附近车站', close:'关闭',
@@ -1843,7 +1843,7 @@ const I18N = {
     missV:'这趟很难赶上，请乘坐下一趟 🟢', after:'下趟', manualHint:'输入站名搜索', searchPh:'例：江南、市厅…',
     spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。',
     arriveMapHint:'🗺️ 白点是您选择的车站，黄色边框的列车正驶向该站。',
-    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。', favTitle:'⭐ 收藏车站', apiTitle:'我的实时API密钥', favEmpty:'还没有收藏。在到达页点 ☆ 添加。', favAdded:'已加入收藏', favRemoved:'已取消收藏', favLocalOnly:'使用谷歌登录可将收藏保存到账户。' },
+    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。', favTitle:'⭐ 收藏车站', apiTitle:'我的实时API密钥', arriving:'即将到达', entering:'进站中', departing:'已发车', stopsAway:'站前', stopShort:'站', favEmpty:'还没有收藏。在到达页点 ☆ 添加。', favAdded:'已加入收藏', favRemoved:'已取消收藏', favLocalOnly:'使用谷歌登录可将收藏保存到账户。' },
   ja:{ seniorEntry:'📍 近くの駅 · 次の電車の到着', seniorEntryHint:'現在地から近い駅を探し、上り・下りの次の電車が何分後に来るかを大きな文字でお知らせします。',
     findTrainTitle:'📍 乗っている電車を探しています…', changeStation:'📍 別の駅を選ぶ', refresh:'🔄 更新', home:'🏠 ホーム',
     arriveDisc:'到着情報はソウルのリアルタイムデータです。急がず安全に移動してください。', nearbyTitle:'📍 近くの駅を選んでください', close:'閉じる',
@@ -1854,7 +1854,7 @@ const I18N = {
     missV:'この電車は難しいです。次の電車に乗ってください 🟢', after:'次', manualHint:'駅名を入力して検索', searchPh:'例: 江南、市庁…',
     spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。',
     arriveMapHint:'🗺️ 白い点が選んだ駅、黄色い枠の電車がこの駅に向かう電車です。',
-    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。', favTitle:'⭐ お気に入り駅', apiTitle:'リアルタイムAPIキー', favEmpty:'お気に入りがありません。到着画面で☆を押して追加。', favAdded:'お気に入りに追加', favRemoved:'お気に入りから削除', favLocalOnly:'Googleでログインすると、お気に入りがアカウントに保存されます。' }
+    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。', favTitle:'⭐ お気に入り駅', apiTitle:'リアルタイムAPIキー', arriving:'まもなく到着', entering:'進入中', departing:'発車', stopsAway:'駅前', stopShort:'駅', favEmpty:'お気に入りがありません。到着画面で☆を押して追加。', favAdded:'お気に入りに追加', favRemoved:'お気に入りから削除', favLocalOnly:'Googleでログインすると、お気に入りがアカウントに保存されます。' }
 };
 let currentLang = localStorage.getItem('tj_lang') || 'ko';
 function t(key, vars){
@@ -2202,30 +2202,47 @@ async function openArrive(stn){
   if(state.pollSec>0) _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), Math.max(15,state.pollSec)*1000);
   speak(t('spkArrive',{stn:_arriveStn.name, u:'', d:''}));
 }
-function parseEta(a){ let s=Number(a.barvlDt); if(!s||s<0) s=30; return s; }
 function etaText(sec){ const m=Math.floor(sec/60), s=sec%60; return m>0 ? (m+t('min')) : (s+t('sec')); }
+// 도착 정보 해석: barvlDt(초)가 있으면 그대로, 없으면 arvlMsg2/arvlCd로 '도착/진입/N정거장 전' 표기
+function arrInfo(a){
+  const sec0=Number(a.barvlDt);
+  const msg=String(a.arvlMsg2||'').trim();
+  const cd=String(a.arvlCd||'');
+  if(sec0 && sec0>0) return {sec:sec0, big:etaText(sec0), short:etaText(sec0), approx:false};
+  const mm=msg.match(/(\d+)\s*분/), ss=msg.match(/(\d+)\s*초/);
+  if(mm||ss){ const s=(mm?+mm[1]*60:0)+(ss?+ss[1]:0); return {sec:s, big:etaText(s), short:etaText(s), approx:false}; }
+  if(cd==='1'||/도착/.test(msg)) return {sec:0,  big:t('arriving'),  short:t('arriving'),  approx:false};
+  if(cd==='0'||/진입/.test(msg)) return {sec:25, big:t('entering'),  short:t('entering'),  approx:false};
+  if(cd==='2'||/출발/.test(msg)) return {sec:45, big:t('departing'), short:t('departing'), approx:true};
+  const nm=msg.match(/\[?(\d+)\]?\s*번째\s*전역/);
+  if(nm){ const n=+nm[1]; const pre=(currentLang==='ko')?'약 ':(currentLang==='ja')?'約':(currentLang==='zh')?'约':'~';
+    return {sec:n*120, big:pre+n+t('stopsAway'), short:n+t('stopShort'), approx:true}; }
+  return {sec:null, big:(msg||t('noInfo')), short:null, approx:true};
+}
 function buildDirCard(dirKey, arr){
   const card=document.createElement('div'); card.className='arr-card';
   const head=document.createElement('div'); head.className='dir'; head.textContent=t(dirKey);
   card.appendChild(head);
   if(!arr.length){ const n=document.createElement('div'); n.className='arr-none'; n.textContent=t('noInfo'); card.appendChild(n); return card; }
-  const sorted=arr.map(a=>({a,eta:parseEta(a)})).sort((x,y)=>x.eta-y.eta);
+  const big=v=> (v.info.sec==null? 1e9 : v.info.sec);
+  const sorted=arr.map(a=>({a,info:arrInfo(a)})).sort((x,y)=>big(x)-big(y));
   const first=sorted[0], second=sorted[1];
-  // 도보 대비 탑승 가능 판정
+  // 도보 대비 탑승 가능 판정 (정밀 또는 추정 초가 있을 때만)
   let catchIdx=-1, spare=0;
   if(_myPos && _arriveStn.dist!=null){
     const w=walkSec(_arriveStn.dist), buf=60;
-    if(first.eta>=w+buf){ catchIdx=0; spare=Math.round((first.eta-w)/60); }
-    else if(second && second.eta>=w+buf){ catchIdx=1; spare=Math.round((second.eta-w)/60); }
+    const e1=first.info.sec, e2=second&&second.info.sec;
+    if(e1!=null && e1>=w+buf){ catchIdx=0; spare=Math.round((e1-w)/60); }
+    else if(e2!=null && e2>=w+buf){ catchIdx=1; spare=Math.round((e2-w)/60); }
   }
-  // 첫 열차
+  // 첫 열차 — 큰 글씨는 arrInfo.big (도착/진입/N정거장 전/N분)
   const r1=document.createElement('div'); r1.className='arr-row';
   r1.innerHTML=`<div><div class="where">${(first.a.trainLineNm||'').split(' - ')[0]||''}</div>`
     +`<div class="where">${t('nowAt')} ${nameFor((first.a.arvlMsg3||'').replace(/역$/,''))}</div></div>`
-    +`<div class="arr-min">${etaText(first.eta)}<small>${t('after')==='Next'?'':''}</small></div>`;
+    +`<div class="arr-min">${first.info.big}</div>`;
   card.appendChild(r1);
   if(second){ const r2=document.createElement('div'); r2.className='arr-2nd';
-    r2.textContent=`${t('after')}: ${etaText(second.eta)} · ${(second.a.trainLineNm||'').split(' - ')[0]||''}`; card.appendChild(r2); }
+    r2.textContent=`${t('after')}: ${second.info.big} · ${(second.a.trainLineNm||'').split(' - ')[0]||''}`; card.appendChild(r2); }
   // 판정 표시
   if(catchIdx>=0){
     card.classList.add('catch'); card.classList.add('sparkle');
@@ -2234,7 +2251,7 @@ function buildDirCard(dirKey, arr){
     } else {
       const v=document.createElement('div'); v.className='verdict'; v.textContent='✨ '+t('missV'); card.appendChild(v);
     }
-  } else if(_myPos && _arriveStn.dist!=null){
+  } else if(_myPos && _arriveStn.dist!=null && first.info.sec!=null){
     card.classList.add('tight');
     const v=document.createElement('div'); v.className='verdict'; v.textContent=t('tightV'); card.appendChild(v);
   }
@@ -2255,12 +2272,12 @@ async function renderArrive(opts){
   box.innerHTML='';
   const cUp=buildDirCard('up', up), cDown=buildDirCard('down', down);
   box.appendChild(cUp); box.appendChild(cDown);
-  // 지도: 이 역으로 오는 열차에 남은시간 표기
+  // 지도: 이 역으로 오는 열차에 도착정보(도착/진입/N정거장/N분) 라벨
   const etaByTrain={};
-  list.forEach(a=>{ const no=String(a.btrainNo||'').trim(); if(no) etaByTrain[no]=parseEta(a); });
+  list.forEach(a=>{ const no=String(a.btrainNo||'').trim(); const sh=arrInfo(a).short; if(no && sh) etaByTrain[no]=sh; });
   renderArriveMap(etaByTrain, !!opts.freshMap);
   // 음성: 다음 열차 + 뛰지마세요
-  const nx=arr=>{ if(!arr.length) return t('noInfo'); const s=arr.map(parseEta).sort((a,b)=>a-b)[0]; return etaText(s); };
+  const nx=arr=>{ if(!arr.length) return t('noInfo'); const s=arr.map(a=>({i:arrInfo(a)})).sort((x,y)=>(x.i.sec==null?1e9:x.i.sec)-(y.i.sec==null?1e9:y.i.sec))[0]; return s.i.big; };
   speak(t('spkArrive',{stn:_arriveStn.name, u:nx(up), d:nx(down)}));
   if(document.querySelector('.arr-card.catch')) speak(t('spkRun'));
 }

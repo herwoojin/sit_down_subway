@@ -18,7 +18,7 @@ exports.handler = async (event) => {
 
   // 정상(현재 한도 여유) 공용 키 — 환경변수 SEOUL_SUBWAY_API_KEY 로 덮어쓸 수 있음.
   // (기존 SEOUL_API_KEY 는 한도 소진되어 기본 체인에서 제외)
-  const DEFAULT_KEY = '515a4a4768686865723130327650664576';
+  const DEFAULT_KEY = '515a4a47686865723130327650664576';
   // 사용자가 본인 발급 키를 보내면 그 키 사용(개인 한도), 아니면 공용 키
   const userKey = (event.queryStringParameters && event.queryStringParameters.key) || '';
   const valid = /^[A-Za-z0-9]{16,64}$/.test(userKey);

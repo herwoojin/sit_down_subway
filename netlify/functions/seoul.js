@@ -16,7 +16,10 @@ exports.handler = async (event) => {
     return json(400, { error: 'invalid path' });
   }
 
-  const key = process.env.SEOUL_SUBWAY_API_KEY || process.env.SEOUL_API_KEY;
+  // 사용자가 본인 발급 키를 보내면 그 키 사용(개인 한도), 아니면 서버 공용 키
+  const userKey = (event.queryStringParameters && event.queryStringParameters.key) || '';
+  const valid = /^[A-Za-z0-9]{20,40}$/.test(userKey);
+  const key = valid ? userKey : (process.env.SEOUL_SUBWAY_API_KEY || process.env.SEOUL_API_KEY);
   if (!key) {
     return json(500, { error: 'SEOUL_SUBWAY_API_KEY(또는 SEOUL_API_KEY) 환경변수가 설정되지 않았습니다.' });
   }

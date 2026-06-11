@@ -312,6 +312,7 @@
     <!-- 시니어 핵심 진입: 내 주변 역 도착정보 -->
     <button class="btn primary big-cta" id="seniorEntry" data-i18n="seniorEntry">📍 내 주변 역 · 다음 열차 도착 보기</button>
     <button class="btn ghost" id="favEntry" style="margin-top:8px"><span data-i18n="favTitle">⭐ 즐겨찾는 역</span> <span id="favCount" style="color:var(--accent);font-weight:800"></span></button>
+    <button class="btn ghost" id="apiKeyEntry" style="margin-top:8px">🔑 <span data-i18n="apiTitle">내 실시간 API 키</span> <span id="apiKeyState" style="font-weight:800"></span></button>
     <p class="muted" id="seniorEntryHint" data-i18n="seniorEntryHint" style="margin:8px 2px 16px">내 위치에서 가까운 역을 찾아, 상행·하행 다음 열차가 몇 분 뒤 오는지 큰 글씨로 알려드려요.</p>
     <hr style="border:none;border-top:1px solid var(--line);margin:6px 0 16px">
 
@@ -325,7 +326,8 @@
 
     <!-- 실시간 신뢰도 배너: 큰 현재시각 + 데이터 업데이트 시각 -->
     <div class="clockbar" id="clockBarContainer" style="cursor:pointer" title="클릭하여 새로고침">
-      <div class="now"><b id="nowClock">--:--:--</b><small id="nowDate">실시간 서울 교통정보</small></div>
+      <div class="now"><b id="nowClock">--:--:--</b><small id="nowDate">실시간 서울 교통정보</small>
+        <small id="quotaInfo" style="margin-top:2px"></small></div>
       <div class="upd">
         <div class="live"><span class="pulse off" id="livePulse"></span><span id="liveLabel">연결 대기</span></div>
         <div>데이터 업데이트<br><b id="updClock">--:--:--</b></div>
@@ -523,6 +525,52 @@
   </div>
 </div>
 
+<!-- 내 실시간 API 키 등록 팝업 -->
+<div id="apiModal" class="modal hide">
+  <div class="modal-card">
+    <h2 style="margin:0 0 6px">🔑 <span data-i18n="apiTitle">내 실시간 API 키</span></h2>
+    <p class="muted" id="apiStatus" style="margin:0 0 10px"></p>
+    <p class="muted" style="margin:0 0 6px;font-size:.9em">서울시 실시간 지하철 인증키(본인 발급)를 붙여넣고 저장하면, <b>내 키의 하루 1,000건 한도</b>로 동작해요. 로그인하면 계정에 저장돼 계속 사용돼요.</p>
+    <input id="apiKeyInput" type="text" autocomplete="off" spellcheck="false" placeholder="예: 4a5b6c7d8e9f...(발급받은 인증키)"
+      style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--tint);color:var(--ink);font-size:1em;font-weight:700;margin-bottom:10px">
+    <div style="display:flex;gap:8px">
+      <button class="btn green" id="apiSave" style="flex:1;margin:0">💾 저장하고 사용</button>
+      <button class="btn ghost" id="apiDelete" style="flex:1;margin:0">🗑️ 내 키 삭제</button>
+    </div>
+
+    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <label style="font-weight:700;display:block;margin-bottom:6px">⏱️ 자동 갱신 주기 <span class="muted" style="font-weight:600;font-size:.85em">(짧을수록 한도 소모가 빨라요)</span></label>
+      <select id="pollSelect" style="width:100%;padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--tint);color:var(--ink);font-size:1em;font-weight:700">
+        <option value="15">15초마다</option>
+        <option value="30">30초마다 (기본)</option>
+        <option value="60">1분마다</option>
+        <option value="120">2분마다</option>
+        <option value="300">5분마다</option>
+        <option value="0">자동 갱신 끄기 (수동 새로고침만)</option>
+      </select>
+      <p class="muted" id="quotaInfo2" style="margin:8px 0 0;font-size:.9em"></p>
+    </div>
+
+    <button class="btn primary" id="apiGuideBtn" style="margin-top:12px">📖 발급 방법 자세히 보기</button>
+    <div id="apiGuide" class="hide" style="margin-top:12px;background:var(--tint);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:.92em;line-height:1.7">
+      <b>서울 실시간 지하철 인증키 발급 — 단계별</b>
+      <ol style="margin:8px 0 0;padding-left:20px">
+        <li><b>서울 열린데이터광장</b> 접속 → <a href="https://data.seoul.go.kr" target="_blank" rel="noopener" style="color:var(--accent)">data.seoul.go.kr</a></li>
+        <li>우측 상단 <b>회원가입</b> 후 <b>로그인</b> (무료)</li>
+        <li>상단 검색창에 <b>"지하철 실시간 위치정보"</b> 검색</li>
+        <li>「<b>서울교통공사_지하철 실시간 위치정보</b>」(Open API) 선택</li>
+        <li>페이지의 <b>[인증키 신청]</b> 클릭 → 활용목적 간단히 입력 → 신청<br>
+          <span class="muted">(실시간 지하철은 보통 즉시~1·2일 내 자동 승인)</span></li>
+        <li>로그인 상태에서 <b>마이페이지 → 인증키 관리(또는 일반 인증키)</b>로 이동</li>
+        <li>발급된 <b>인증키 문자열을 복사</b> (영문+숫자 약 30자)</li>
+        <li>이 화면 입력칸에 <b>붙여넣고 「저장하고 사용」</b> 클릭 ✅</li>
+      </ol>
+      <p class="muted" style="margin:10px 0 0">※ 같은 인증키로 <b>실시간 도착정보</b>도 함께 동작합니다.<br>※ 한도 초과 시 매일 <b>자정(00시, KST)</b>에 자동 리셋됩니다.</p>
+    </div>
+    <button class="btn ghost" id="apiClose" data-i18n="close" style="margin-top:10px">닫기</button>
+  </div>
+</div>
+
 <!-- 즐겨찾는 역 팝업 -->
 <div id="favModal" class="modal hide">
   <div class="modal-card">
@@ -635,15 +683,44 @@ function speak(text){
 // 키를 숨긴다. 프록시가 없으면(로컬 http 개발) 직접 호출로 폴백한다.
 async function seoulApi(path){
   try {
-    const pr = await fetch(`/.netlify/functions/seoul?path=${encodeURIComponent(path)}`);
+    const kp = state.userApiKey ? `&key=${encodeURIComponent(state.userApiKey)}` : '';
+    const pr = await fetch(`/.netlify/functions/seoul?path=${encodeURIComponent(path)}${kp}`);
     if (pr.ok) {
+      if(pr.headers.get('X-Proxy-Cache')!=='HIT') bumpApiCalls(); // 캐시 HIT가 아니면 실제 서울 API 호출 1건
       const j = await pr.json();
       if (!j || !j.error) return j;   // 함수가 정상 JSON을 주면 사용
     }
   } catch(e) { /* 프록시 없음/실패 → 직접 호출로 폴백 */ }
   // 로컬 개발(http://localhost) 폴백: 파일에 든 데모 키로 직접 호출
+  bumpApiCalls();
   const r = await fetch(`http://swopenapi.seoul.go.kr/api/subway/${state.apiKey}/json/${path}`);
   return await r.json();
+}
+// ===== 일일 호출 사용량 카운터(이 기기 기준 근사) + 자동 갱신 주기 설정 =====
+function _today(){ return new Date().toLocaleDateString('ko-KR'); }
+let apiCalls = (function(){ try{ const o=JSON.parse(localStorage.getItem('tj_apicalls')||'{}'); return (o.date===_today())?o:{date:_today(),count:0}; }catch(e){ return {date:_today(),count:0}; } })();
+function bumpApiCalls(){
+  if(apiCalls.date!==_today()) apiCalls={date:_today(),count:0};
+  apiCalls.count++;
+  localStorage.setItem('tj_apicalls', JSON.stringify(apiCalls));
+  renderQuota();
+}
+function renderQuota(){
+  if(apiCalls.date!==_today()) apiCalls={date:_today(),count:0};
+  const used=apiCalls.count, limit=1000, left=Math.max(0, limit-used);
+  const kind = state.userApiKey ? '내 키' : '공용 키';
+  const pct = Math.min(100, Math.round(used/limit*100));
+  const color = used>=950?'#eb5757':(used>=800?'#f2994a':'#9fb2d4');
+  const q=document.getElementById('quotaInfo');
+  if(q) q.innerHTML=`오늘 호출 <b style="color:${color}">${used}</b>/${limit} (${kind})`;
+  const q2=document.getElementById('quotaInfo2');
+  if(q2) q2.innerHTML=`오늘 이 기기에서 약 <b style="color:${color}">${used}건</b> 호출 · 남은 한도 약 <b>${left}건</b> (${kind}, 자정 리셋)`;
+}
+// 자동 갱신 주기(초). 0이면 끔.
+state.pollSec = (function(){ const raw=localStorage.getItem('tj_pollsec'); if(raw===null) return 30; const v=Number(raw); return (v===0||v>=15)?v:30; })();
+function applyPollInterval(){
+  if(state.trainInterval) clearInterval(state.trainInterval);
+  if(state.pollSec>0) state.trainInterval=setInterval(()=>forceUpdateRealtimeData(false), state.pollSec*1000);
 }
 
 async function fetchTrainPosition(line){
@@ -1523,6 +1600,7 @@ window.agOnLogin = function(user){
   toast((user.name||'환영합니다')+'님 로그인');
   speak(`${user.name||''}님 환영해요.`);
   if(typeof syncFavoritesOnLogin==='function') setTimeout(syncFavoritesOnLogin, 300); // 클라우드 즐겨찾기 병합
+  if(typeof syncApiKeyOnLogin==='function') setTimeout(syncApiKeyOnLogin, 350);        // 클라우드 API키 불러오기
   resetAll(); // step0로 진입하며 실시간 열차 로드
 };
 window.agShowLogin = function(){
@@ -1655,9 +1733,22 @@ if (clockBarContainer) {
   clockBarContainer.addEventListener('click', () => forceUpdateRealtimeData(true));
 }
 
-// 30초 단위로 실시간 데이터 갱신 (폴링) — 일일 호출한도 절약
-if (state.trainInterval) clearInterval(state.trainInterval);
-state.trainInterval = setInterval(() => forceUpdateRealtimeData(false), 30000);
+// 자동 갱신 (폴링) — 주기는 설정값(state.pollSec)에 따름, 일일 호출한도 절약
+applyPollInterval();
+// 설정: 자동 갱신 주기 셀렉트
+(function(){
+  const sel=document.getElementById('pollSelect');
+  if(sel){
+    sel.value=String(state.pollSec);
+    sel.addEventListener('change',()=>{
+      state.pollSec=Number(sel.value)||0;
+      localStorage.setItem('tj_pollsec', String(state.pollSec));
+      applyPollInterval();
+      toast(state.pollSec? `자동 갱신 ${state.pollSec}초로 설정` : '자동 갱신 끔 (수동 새로고침만)');
+    });
+  }
+  renderQuota();
+})();
 
 // ================= 다국어(i18n) =================
 const I18N = {
@@ -1671,7 +1762,7 @@ const I18N = {
     missV:'이번 열차는 어려워요. 다음 열차를 타세요 🟢', after:'다음', manualHint:'역 이름을 입력해 찾으세요', searchPh:'예: 강남, 시청…',
     spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.',
     arriveMapHint:'🗺️ 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.',
-    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.', favTitle:'⭐ 즐겨찾는 역', favEmpty:'아직 즐겨찾는 역이 없어요. 도착화면에서 ☆를 눌러 추가하세요.', favAdded:'즐겨찾기에 추가했어요', favRemoved:'즐겨찾기에서 뺐어요', favLocalOnly:'구글 로그인하면 즐겨찾기가 계정에 저장돼요.' },
+    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.', favTitle:'⭐ 즐겨찾는 역', apiTitle:'내 실시간 API 키', favEmpty:'아직 즐겨찾는 역이 없어요. 도착화면에서 ☆를 눌러 추가하세요.', favAdded:'즐겨찾기에 추가했어요', favRemoved:'즐겨찾기에서 뺐어요', favLocalOnly:'구글 로그인하면 즐겨찾기가 계정에 저장돼요.' },
   en:{ seniorEntry:'📍 Nearby stations · Next train arrivals', seniorEntryHint:'Find the closest station to you and see, in large text, how many minutes until the next train in each direction.',
     findTrainTitle:'📍 Finding your train…', changeStation:'📍 Choose another station', refresh:'🔄 Refresh', home:'🏠 Home',
     arriveDisc:'Arrival times are live Seoul data. Please walk safely, no need to rush.', nearbyTitle:'📍 Choose a nearby station', close:'Close',
@@ -1682,7 +1773,7 @@ const I18N = {
     missV:'Hard to catch this one. Take the next train 🟢', after:'Next', manualHint:'Type a station name to search', searchPh:'e.g. Gangnam, City Hall…',
     spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.',
     arriveMapHint:'🗺️ The white dot is your station; trains with a yellow border are heading to it.',
-    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.', favTitle:'⭐ Favorite stations', favEmpty:'No favorites yet. Tap ☆ on the arrival screen to add.', favAdded:'Added to favorites', favRemoved:'Removed from favorites', favLocalOnly:'Sign in with Google to save favorites to your account.' },
+    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.', favTitle:'⭐ Favorite stations', apiTitle:'My realtime API key', favEmpty:'No favorites yet. Tap ☆ on the arrival screen to add.', favAdded:'Added to favorites', favRemoved:'Removed from favorites', favLocalOnly:'Sign in with Google to save favorites to your account.' },
   zh:{ seniorEntry:'📍 附近车站 · 下趟列车到达', seniorEntryHint:'查找离您最近的车站，用大字显示上行、下行下趟列车几分钟后到达。',
     findTrainTitle:'📍 正在查找您的列车…', changeStation:'📍 选择其他车站', refresh:'🔄 刷新', home:'🏠 首页',
     arriveDisc:'到达信息为首尔实时数据。请慢慢安全地走，不必着急。', nearbyTitle:'📍 请选择附近车站', close:'关闭',
@@ -1693,7 +1784,7 @@ const I18N = {
     missV:'这趟很难赶上，请乘坐下一趟 🟢', after:'下趟', manualHint:'输入站名搜索', searchPh:'例：江南、市厅…',
     spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。',
     arriveMapHint:'🗺️ 白点是您选择的车站，黄色边框的列车正驶向该站。',
-    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。', favTitle:'⭐ 收藏车站', favEmpty:'还没有收藏。在到达页点 ☆ 添加。', favAdded:'已加入收藏', favRemoved:'已取消收藏', favLocalOnly:'使用谷歌登录可将收藏保存到账户。' },
+    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。', favTitle:'⭐ 收藏车站', apiTitle:'我的实时API密钥', favEmpty:'还没有收藏。在到达页点 ☆ 添加。', favAdded:'已加入收藏', favRemoved:'已取消收藏', favLocalOnly:'使用谷歌登录可将收藏保存到账户。' },
   ja:{ seniorEntry:'📍 近くの駅 · 次の電車の到着', seniorEntryHint:'現在地から近い駅を探し、上り・下りの次の電車が何分後に来るかを大きな文字でお知らせします。',
     findTrainTitle:'📍 乗っている電車を探しています…', changeStation:'📍 別の駅を選ぶ', refresh:'🔄 更新', home:'🏠 ホーム',
     arriveDisc:'到着情報はソウルのリアルタイムデータです。急がず安全に移動してください。', nearbyTitle:'📍 近くの駅を選んでください', close:'閉じる',
@@ -1704,7 +1795,7 @@ const I18N = {
     missV:'この電車は難しいです。次の電車に乗ってください 🟢', after:'次', manualHint:'駅名を入力して検索', searchPh:'例: 江南、市庁…',
     spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。',
     arriveMapHint:'🗺️ 白い点が選んだ駅、黄色い枠の電車がこの駅に向かう電車です。',
-    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。', favTitle:'⭐ お気に入り駅', favEmpty:'お気に入りがありません。到着画面で☆を押して追加。', favAdded:'お気に入りに追加', favRemoved:'お気に入りから削除', favLocalOnly:'Googleでログインすると、お気に入りがアカウントに保存されます。' }
+    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。', favTitle:'⭐ お気に入り駅', apiTitle:'リアルタイムAPIキー', favEmpty:'お気に入りがありません。到着画面で☆を押して追加。', favAdded:'お気に入りに追加', favRemoved:'お気に入りから削除', favLocalOnly:'Googleでログインすると、お気に入りがアカウントに保存されます。' }
 };
 let currentLang = localStorage.getItem('tj_lang') || 'ko';
 function t(key, vars){
@@ -1966,6 +2057,59 @@ document.getElementById('favStar').addEventListener('click', ()=>{
 });
 updateFavCount();
 
+// ================= 내 실시간 API 키 (개인 발급, Firestore + localStorage) =================
+state.userApiKey = localStorage.getItem('tj_apikey') || '';
+function updateApiKeyState(){ const el=document.getElementById('apiKeyState'); if(el) el.textContent = state.userApiKey ? '✅' : ''; if(typeof renderQuota==='function') renderQuota(); }
+async function syncApiKeyOnLogin(){
+  if(!window.agLoadApiKey) return;
+  const cloud = await window.agLoadApiKey();
+  if(cloud && !state.userApiKey){ state.userApiKey=cloud; localStorage.setItem('tj_apikey', cloud); state.apiLimited=false; updateApiKeyState(); forceUpdateRealtimeData(true); }
+  else if(state.userApiKey && window.agSaveApiKey){ window.agSaveApiKey(state.userApiKey); } // 로컬 키를 계정에 동기화
+}
+function openApiModal(){
+  document.getElementById('apiKeyInput').value = state.userApiKey || '';
+  document.getElementById('apiGuide').classList.add('hide');
+  const sel=document.getElementById('pollSelect'); if(sel) sel.value=String(state.pollSec);
+  renderQuota();
+  document.getElementById('apiStatus').innerHTML = state.userApiKey
+    ? '현재 <b style="color:var(--green)">내 키 사용 중</b> ✅'
+    : '현재 <b>공용 키</b> 사용 중 (모든 사용자와 하루 1,000건 공유)';
+  document.getElementById('apiModal').classList.remove('hide');
+}
+async function saveApiKey(){
+  const v=(document.getElementById('apiKeyInput').value||'').trim();
+  if(!/^[A-Za-z0-9]{20,40}$/.test(v)){ toast('인증키 형식이 올바르지 않아요 (영문+숫자 약 30자)'); return; }
+  toast('인증키 확인 중…');
+  const prev=state.userApiKey; state.userApiKey=v;
+  let ok=false;
+  try{ const d=await seoulApi('realtimePosition/0/5/2호선'); ok = !!(d && d.realtimePositionList); }catch(e){}
+  if(ok){
+    localStorage.setItem('tj_apikey', v);
+    if(window.agSaveApiKey) window.agSaveApiKey(v);
+    state.apiLimited=false; updateApiKeyState();
+    document.getElementById('apiModal').classList.add('hide');
+    toast('내 API 키로 저장했어요 ✅');
+    forceUpdateRealtimeData(true);
+  } else {
+    state.userApiKey=prev;
+    toast('이 키로 데이터를 못 받았어요. 키/승인 상태를 확인해 주세요.');
+  }
+}
+function deleteApiKey(){
+  state.userApiKey=''; localStorage.removeItem('tj_apikey');
+  if(window.agSaveApiKey) window.agSaveApiKey('');
+  updateApiKeyState();
+  document.getElementById('apiKeyInput').value='';
+  document.getElementById('apiStatus').innerHTML='현재 <b>공용 키</b> 사용 중';
+  toast('내 키를 삭제했어요 (공용 키 사용)');
+}
+document.getElementById('apiKeyEntry').addEventListener('click', openApiModal);
+document.getElementById('apiClose').addEventListener('click', ()=>document.getElementById('apiModal').classList.add('hide'));
+document.getElementById('apiSave').addEventListener('click', saveApiKey);
+document.getElementById('apiDelete').addEventListener('click', deleteApiKey);
+document.getElementById('apiGuideBtn').addEventListener('click', ()=>document.getElementById('apiGuide').classList.toggle('hide'));
+updateApiKeyState();
+
 function renderArriveStatic(){
   document.getElementById('arriveStnName').textContent=nameFor(_arriveStn)+t('stationSuffix');
   document.getElementById('arriveSub').innerHTML=lineTags(_arriveStn.lines);
@@ -1983,7 +2127,7 @@ async function openArrive(stn){
   showSection('stepArrive');
   await renderArrive();
   if(_arriveTimer) clearInterval(_arriveTimer);
-  _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), 30000);
+  if(state.pollSec>0) _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), Math.max(15,state.pollSec)*1000);
   speak(t('spkArrive',{stn:_arriveStn.name, u:'', d:''}));
 }
 function parseEta(a){ let s=Number(a.barvlDt); if(!s||s<0) s=30; return s; }
@@ -2122,6 +2266,18 @@ window.agShowLogin();
     window.agSaveFavorites = async (arr) => {
       const u = auth.currentUser; if (!u) return false;
       try { await setDoc(doc(db, 'users', u.uid), { favorites: arr, uid: u.uid }, { merge: true }); return true; }
+      catch (e) { return false; }
+    };
+
+    // 사용자 본인 발급 서울 API 키 — Firestore users/{uid}.seoulApiKey (본인만 읽기/쓰기)
+    window.agLoadApiKey = async () => {
+      const u = auth.currentUser; if (!u) return null;
+      try { const s = await getDoc(doc(db, 'users', u.uid)); return (s.exists() && s.data().seoulApiKey) || ''; }
+      catch (e) { return null; }
+    };
+    window.agSaveApiKey = async (key) => {
+      const u = auth.currentUser; if (!u) return false;
+      try { await setDoc(doc(db, 'users', u.uid), { seoulApiKey: key, uid: u.uid }, { merge: true }); return true; }
       catch (e) { return false; }
     };
 

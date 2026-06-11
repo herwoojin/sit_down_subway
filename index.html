@@ -10,7 +10,8 @@
 <meta name="theme-color" content="#101a2e">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <title>뛰지마세요.금방와요</title>
 <style>
@@ -23,7 +24,19 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; padding:0; background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
-  body{width:100%; max-width:520px; margin:0 auto; padding-bottom:calc(40px + env(safe-area-inset-bottom));
+  /* 배경 전경: 일러스트 + 검은 투명 오버레이(가독성) — 화면 고정, 콘텐츠 뒤 */
+  body::before{ content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:linear-gradient(rgba(8,12,22,.66), rgba(8,12,22,.80)), url('/assets/bg.jpg') center center / cover no-repeat; }
+  /* 로딩 스플래시: 로딩 순간마다 이 일러스트가 보임 */
+  #splash{position:fixed; inset:0; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    background:linear-gradient(rgba(8,12,22,.45), rgba(8,12,22,.70)), url('/assets/bg.jpg') center center / cover no-repeat;
+    transition:opacity .45s ease; }
+  #splash.hide{opacity:0; pointer-events:none;}
+  #splash .stitle{font-weight:900; font-size:2.1em; color:#fff; letter-spacing:-1px; text-shadow:0 2px 10px #000a;}
+  #splash .stitle small{display:block; font-size:.42em; font-weight:700; color:#dbe6fb; margin-top:4px; letter-spacing:2px;}
+  #splash .sspin{width:42px; height:42px; border:5px solid #ffffff44; border-top-color:#fff; border-radius:50%; animation:sspin 0.9s linear infinite;}
+  @keyframes sspin{to{transform:rotate(360deg);}}
+  body{width:100%; max-width:520px; margin:0 auto; background:transparent; padding-bottom:calc(40px + env(safe-area-inset-bottom));
     font-size:calc(18px * var(--fs)); line-height:1.5;
     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);}
   /* 반응형: 태블릿은 더 넓게(가독성), 화면 폭에 비례해 글자도 약간 키움 */
@@ -247,6 +260,11 @@
 </style>
 </head>
 <body>
+<!-- 로딩 스플래시 (로딩 순간마다 표시) -->
+<div id="splash">
+  <div class="stitle">뛰지마세요<small>금방와요</small></div>
+  <div class="sspin"></div>
+</div>
 <header>
   <div class="logo" id="brandLogo">뛰지마세요<small id="brandSub">금방와요</small></div>
   <div class="spacer"></div>
@@ -2314,6 +2332,17 @@ window.agShowLogin();
   });
   </script>
   <script>
+    // 로딩 스플래시 숨기기 (최소 700ms 노출 후 페이드아웃)
+    (function(){
+      const sp=document.getElementById('splash'); if(!sp) return;
+      const start=Date.now();
+      const hide=()=>{ const wait=Math.max(0,700-(Date.now()-start));
+        setTimeout(()=>{ sp.classList.add('hide'); setTimeout(()=>sp.remove(),500); }, wait); };
+      if(document.readyState==='complete') hide();
+      else window.addEventListener('load', hide);
+      setTimeout(hide, 5000); // 안전장치
+    })();
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {

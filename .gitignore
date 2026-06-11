@@ -3,3 +3,4 @@ node_modules/
 *.log
 .env
 .netlify/
+Gemini_Generated_Image_*.png

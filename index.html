@@ -1065,9 +1065,16 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
     // 2호선(순환선) 평상시 열차 = 동그라미(번호는 호버 툴팁). 단, 선택/도착예정(ETA) 열차는 번호 full 표시.
     const asDot = isLoop && !hasEta && !sel;
     if (asDot) {
-      const c = svgEl('circle', {cx:0, cy:0, r:7.5, fill:col, stroke:'#0b1730', 'stroke-width':2});
-      c.setAttribute('class','traindot');
-      g.appendChild(c);
+      // 진행 방향을 향하는 삼각형
+      const S=8.5;
+      let pts;
+      if(moveDir==='left')      pts=`${-S},0 ${S*0.8},${-S*0.85} ${S*0.8},${S*0.85}`;
+      else if(moveDir==='up')   pts=`0,${-S} ${-S*0.85},${S*0.8} ${S*0.85},${S*0.8}`;
+      else if(moveDir==='down') pts=`0,${S} ${-S*0.85},${-S*0.8} ${S*0.85},${-S*0.8}`;
+      else                      pts=`${S},0 ${-S*0.8},${-S*0.85} ${-S*0.8},${S*0.85}`; // right(기본)
+      const tri = svgEl('polygon', {points:pts, fill:col, stroke:'#0b1730', 'stroke-width':2, 'stroke-linejoin':'round'});
+      tri.setAttribute('class','traindot');
+      g.appendChild(tri);
     } else {
       // 열차 핀: 단색 알약. 선택 시 노란색, 도착예정(ETA) 열차는 노란 테두리 강조.
       g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,

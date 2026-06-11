@@ -1921,9 +1921,16 @@ async function renderArriveMap(etaByTrain, fresh){
   let base;
   if(!fresh && _mapList && _mapList.length && _mapListLine===state.line){ base=_mapList; }
   else { try{ base=await fetchTrainPosition(state.line); _mapList=base; _mapListLine=state.line; }catch(e){ base=_mapList||[]; } }
-  // _mapList(라이브) 오염 방지를 위해 복제 후 도착 ETA만 부여
-  const positions=(base||[]).map(p=>Object.assign({}, p));
-  positions.forEach(p=>{ const e=etaByTrain[String(p.trainNo)]; if(e!=null) p.__eta=e; });
+  // 복제(라이브 오염 방지) + 실제 열차(비고스트) 중복 제거
+  const seenSolid=new Set();
+  const positions=(base||[]).map(p=>Object.assign({}, p)).filter(p=>{
+    if(p.isGhost) return true;                 // 잔상은 유지(희미하게 표시)
+    const k=String(p.trainNo);
+    if(seenSolid.has(k)) return false;         // 같은 번호의 실열차 중복 제거
+    seenSolid.add(k); return true;
+  });
+  // ETA(노란 테두리 강조)는 '실제 현재 위치' 열차에만 부여 — 잔상(ghost)에는 부여하지 않음
+  positions.forEach(p=>{ if(p.isGhost) return; const e=etaByTrain[String(p.trainNo)]; if(e!=null) p.__eta=e; });
   renderTrainMap(positions, 'arriveMap', false);
 }
 // 시니어 편의: 큰 글씨 + 음성 자동 ON

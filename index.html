@@ -609,7 +609,7 @@
 // ---- 0. 상태 ----
 const state = {
   // 서울시 지하철 실시간 인증키 (사용자 제공). 운영 시에는 서버 프록시 뒤에 숨겨야 함.
-  apiKey: '4753464b6a6865723233644f536d57',
+  apiKey: '515a4a4768686865723130327650664576',
   line: '2호선',
   trainNo: '',
   trackedTrain: '',        // 차량번호로 매칭·추적 중인 열차
@@ -701,7 +701,8 @@ function speak(text){
 // 키를 숨긴다. 프록시가 없으면(로컬 http 개발) 직접 호출로 폴백한다.
 async function seoulApi(path){
   try {
-    const kp = state.userApiKey ? `&key=${encodeURIComponent(state.userApiKey)}` : '';
+    const cleanKey = (state.userApiKey||'').replace(/[^A-Za-z0-9]/g,''); // 공백·따옴표 등 제거
+    const kp = cleanKey ? `&key=${cleanKey}` : '';
     const pr = await fetch(`/.netlify/functions/seoul?path=${encodeURIComponent(path)}${kp}`);
     if (pr.ok) {
       if(pr.headers.get('X-Proxy-Cache')!=='HIT') bumpApiCalls(); // 캐시 HIT가 아니면 실제 서울 API 호출 1건

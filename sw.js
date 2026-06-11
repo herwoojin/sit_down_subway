@@ -3,7 +3,7 @@
 //  - HTML 문서(navigate): 네트워크 우선 → 실패 시 캐시(오프라인). 배포 후 최신 반영 보장.
 //  - 정적 자산(아이콘/매니페스트 등): 캐시 우선 → 네트워크.
 //  - API/서버리스 함수/외부 호출: 캐시하지 않고 그대로 네트워크.
-const CACHE_NAME = 'sit-down-subway-v4';
+const CACHE_NAME = 'sit-down-subway-v5';
 const ASSETS = [
   '/',
   '/index.html',

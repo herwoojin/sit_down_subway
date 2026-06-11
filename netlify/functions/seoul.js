@@ -12,9 +12,9 @@ exports.handler = async (event) => {
     return json(400, { error: 'invalid path' });
   }
 
-  const key = process.env.SEOUL_API_KEY;
+  const key = process.env.SEOUL_SUBWAY_API_KEY || process.env.SEOUL_API_KEY;
   if (!key) {
-    return json(500, { error: 'SEOUL_API_KEY 환경변수가 설정되지 않았습니다.' });
+    return json(500, { error: 'SEOUL_SUBWAY_API_KEY(또는 SEOUL_API_KEY) 환경변수가 설정되지 않았습니다.' });
   }
 
   // 각 경로 세그먼트를 인코딩(한글 역명/노선명 대응)

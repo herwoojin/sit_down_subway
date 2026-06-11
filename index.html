@@ -716,7 +716,7 @@ async function loadTrains(silent = false){
     items.innerHTML=''; wrap.classList.remove('hide');
   }
 
-  let list=[];
+  let list=[]; let errored=false;
   try{
     list = await fetchTrainPosition(state.line);
     
@@ -734,22 +734,31 @@ async function loadTrains(silent = false){
 
     state.live = list.length>0;
   }catch(e){
-    state.live=false;
+    state.live=false; errored=true;
     if (!silent) {
       msg.innerHTML=`실시간 연결이 막혔어요 <span class="livebadge off">샘플</span><br>
         <span style="font-size:.82em">브라우저 보안(CORS/혼합콘텐츠)으로 직접 호출이 차단될 수 있어요. 운영 시 서버 프록시가 필요합니다. 지금은 샘플로 보여드릴게요.</span>`;
     }
+    list = getSampleTrains(state.line); // 연결 오류(개발/오프라인) 시에만 샘플
   }
 
   if(!list.length){
+    // 정상 응답이 빈 배열 = 운행종료/장애 → '운행 정보 없음'
     state.live=false;
-    if (!silent && !msg.textContent.includes('샘플')) {
-      msg.innerHTML=`실시간 운행 열차가 없어요(막차 이후 등) <span class="livebadge off">샘플</span>`;
+    if (!silent) {
+      msg.innerHTML=`이 노선은 지금 <b>운행 정보 없음</b> (막차·운행종료·점검 등) <span class="livebadge off">정보 없음</span>`;
     }
-    list = getSampleTrains(state.line);
+    items.innerHTML='';
+    document.getElementById('lineMap').innerHTML='';
+    document.getElementById('trainMapWrap').classList.add('hide');
+    document.getElementById('trainList').classList.add('hide');
+    setUpdateStamp(false, list[0] && list[0].recptnDt);
+    return;
   } else {
     if (!silent) {
-      msg.innerHTML=`실시간으로 ${list.length}대의 열차를 찾았어요 <span class="livebadge on">LIVE</span>`;
+      msg.innerHTML = state.live
+        ? `실시간으로 ${list.length}대의 열차를 찾았어요 <span class="livebadge on">LIVE</span>`
+        : `샘플로 보여드려요 <span class="livebadge off">샘플</span>`;
     }
   }
 
@@ -1691,6 +1700,32 @@ document.querySelectorAll('.langbtn').forEach(b=>b.addEventListener('click',()=>
 // ================= 시니어: 내 주변 역 · 상/하행 도착정보 =================
 const ELDERLY_SPEED = 0.85;   // m/s (노인 평균 도보속도, 보수적)
 const LINE_HEX = {'1호선':'#0052A4','2호선':'#009D3E','3호선':'#EF7C1C','4호선':'#00A5DE','5호선':'#996CAC','6호선':'#CD7C2F','7호선':'#747F00','8호선':'#E6186C','9호선':'#BDB092'};
+
+// ===== 신규 노선 추가(서울 realtimePosition API 지원 노선) — 기존 엔진 재사용 =====
+LINES.push('경의중앙선', '신분당선', '수인분당선', '공항철도', '경춘선', '우이신설선', '서해선', '경강선', 'GTX-A');
+Object.assign(LINE_META, {
+  '경의중앙선': {cars:8, color:'#77C4A3', form:'7'},
+  '신분당선': {cars:6, color:'#D4003B', form:'7'},
+  '수인분당선': {cars:6, color:'#FABE00', form:'7'},
+  '공항철도': {cars:6, color:'#0090D2', form:'7'},
+  '경춘선': {cars:8, color:'#0C8E72', form:'7'},
+  '우이신설선': {cars:2, color:'#B0CE18', form:'7'},
+  '서해선': {cars:4, color:'#8FC31F', form:'7'},
+  '경강선': {cars:4, color:'#0054A6', form:'7'},
+  'GTX-A': {cars:8, color:'#9A6292', form:'7'},
+});
+Object.assign(LINE_HEX, {'경의중앙선':'#77C4A3', '신분당선':'#D4003B', '수인분당선':'#FABE00', '공항철도':'#0090D2', '경춘선':'#0C8E72', '우이신설선':'#B0CE18', '서해선':'#8FC31F', '경강선':'#0054A6', 'GTX-A':'#9A6292'});
+Object.assign(STATION_ORDER, {
+  '경의중앙선': ["탄현", "일산", "풍산", "백마", "곡산", "대곡", "능곡", "행신", "강매", "화전", "수색", "디지털미디어시티", "가좌", "홍대입구", "서강대", "신촌", "공덕", "효창공원앞", "용산", "이촌", "서빙고", "한남", "옥수", "응봉", "왕십리", "청량리", "회기", "중랑", "상봉", "망우", "양원", "구리", "도농", "양정", "덕소", "도심", "팔당", "운길산", "양수", "신원", "국수", "아신", "오빈", "양평", "원덕", "용문", "지평", "서울", "야당", "운정", "금릉", "금촌", "월롱", "파주", "문산"],
+  '수인분당선': ["인천", "신포", "숭의", "인하대", "송도", "연수", "원인재", "남동인더스파크", "호구포", "인천논현", "소래포구", "월곶", "달월", "오이도", "수원", "매교", "수원시청", "매탄권선", "망포", "영통", "청명", "상갈", "기흥", "신갈", "구성", "보정", "죽전", "오리", "미금", "정자", "수내", "서현", "이매", "야탑", "모란", "태평", "가천대", "복정", "수서", "대모산입구", "개포동", "구룡", "도곡", "한티", "선릉", "선정릉", "강남구청", "압구정로데오", "서울숲", "왕십리", "청량리"],
+  '신분당선': ["강남", "양재", "양재시민의숲", "청계산입구", "판교", "정자", "미금", "동천", "수지구청", "성복", "상현", "광교중앙", "광교"],
+  '공항철도': ["공항화물청사", "운서", "영종", "청라국제도시", "검암", "계양", "김포공항", "마곡나루", "디지털미디어시티", "홍대입구", "공덕", "서울"],
+  '경춘선': ["청량리", "회기", "중랑", "상봉", "망우", "신내", "갈매", "별내", "퇴계원", "사릉", "금곡", "평내호평", "천마산", "마석", "대성리", "청평", "상천", "가평", "굴봉산", "백양리", "강촌", "김유정", "남춘천", "춘천", "광운대"],
+  '우이신설선': ["북한산보국문", "솔샘", "삼양사거리", "삼양", "화계", "가오리", "419민주묘지", "솔밭공원", "북한산우이", "정릉", "성신여대입구", "보문", "신설동"],
+  '서해선': ["소사", "소새울", "시흥대야", "신천", "신현", "시흥시청", "시흥능곡", "달미", "선부", "초지", "원곡", "원시"],
+  '경강선': ["경기광주", "판교", "이매", "삼동", "초월", "곤지암", "신둔도예촌", "이천", "부발", "세종대왕릉", "여주"],
+}); // GTX-A는 역순서 미지정 → 실시간 위치 기반 approx 레이아웃 사용
+
 let _stations=null, _myPos=null, _arriveStn=null, _arriveTimer=null;
 
 async function loadStations(){

@@ -650,7 +650,8 @@ async function fetchTrainPosition(line){
   let list = [];
   try {
     const d1 = await seoulApi(`realtimePosition/1/100/${line}`);
-    if(d1.realtimePositionList) list = list.concat(d1.realtimePositionList);
+    if(d1 && d1.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); }
+    if(d1 && d1.realtimePositionList){ list = list.concat(d1.realtimePositionList); state.apiLimited=false; }
     // API 제한(100대)을 우회하기 위해 추가 페이지 호출
     if(list.length >= 90) {
       const d2 = await seoulApi(`realtimePosition/101/200/${line}`);
@@ -668,6 +669,8 @@ async function fetchTrainPosition(line){
 // 서울시 실시간 도착정보: .../json/realtimeStationArrival/0/{N}/{역명}
 async function fetchArrival(station){
   const data = await seoulApi(`realtimeStationArrival/0/10/${station}`);
+  if(data && data.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); }
+  if(data && data.realtimeArrivalList) state.apiLimited=false;
   return (data.realtimeArrivalList) || [];
 }
 
@@ -762,7 +765,9 @@ async function loadTrains(silent = false){
     // 정상 응답이 빈 배열 = 운행종료/장애 → '운행 정보 없음'
     state.live=false;
     if (!silent) {
-      msg.innerHTML=`이 노선은 지금 <b>운행 정보 없음</b> (막차·운행종료·점검 등) <span class="livebadge off">정보 없음</span>`;
+      msg.innerHTML = state.apiLimited
+        ? `오늘 실시간 <b>호출 한도(1,000건/일)</b>를 초과했어요. <span style="font-size:.82em">자정(00시) 이후 자동으로 정상화돼요.</span> <span class="livebadge off">한도 초과</span>`
+        : `이 노선은 지금 <b>운행 정보 없음</b> (막차·운행종료·점검 등) <span class="livebadge off">정보 없음</span>`;
     }
     items.innerHTML='';
     document.getElementById('lineMap').innerHTML='';
@@ -1627,6 +1632,8 @@ function setUpdateStamp(live, recptnDt){
 setInterval(tickClock, 1000); tickClock();
 
 function forceUpdateRealtimeData(isManual = false) {
+  // 한도 초과 시 자동 폴링은 3분에 한 번만 재시도(호출량 절약). 수동은 항상 허용.
+  if (!isManual && state.apiLimited && state.apiLimitedAt && (Date.now()-state.apiLimitedAt < 180000)) return;
   const activeSection = ALL_SECTIONS.find(s => !document.getElementById(s).classList.contains('hide'));
   if (['step0', 'stepFleet', 'stepBoard', 'step1'].includes(activeSection)) {
     if (isManual) toast('실시간 정보를 업데이트합니다.');
@@ -1648,9 +1655,9 @@ if (clockBarContainer) {
   clockBarContainer.addEventListener('click', () => forceUpdateRealtimeData(true));
 }
 
-// 15초 단위로 실시간 데이터 갱신 (폴링)
+// 30초 단위로 실시간 데이터 갱신 (폴링) — 일일 호출한도 절약
 if (state.trainInterval) clearInterval(state.trainInterval);
-state.trainInterval = setInterval(() => forceUpdateRealtimeData(false), 15000);
+state.trainInterval = setInterval(() => forceUpdateRealtimeData(false), 30000);
 
 // ================= 다국어(i18n) =================
 const I18N = {
@@ -1976,7 +1983,7 @@ async function openArrive(stn){
   showSection('stepArrive');
   await renderArrive();
   if(_arriveTimer) clearInterval(_arriveTimer);
-  _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), 15000);
+  _arriveTimer=setInterval(()=>renderArrive({freshMap:true}), 30000);
   speak(t('spkArrive',{stn:_arriveStn.name, u:'', d:''}));
 }
 function parseEta(a){ let s=Number(a.barvlDt); if(!s||s<0) s=30; return s; }

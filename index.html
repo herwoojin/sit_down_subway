@@ -308,6 +308,7 @@
   <section id="step0" class="card">
     <!-- 시니어 핵심 진입: 내 주변 역 도착정보 -->
     <button class="btn primary big-cta" id="seniorEntry" data-i18n="seniorEntry">📍 내 주변 역 · 다음 열차 도착 보기</button>
+    <button class="btn ghost" id="favEntry" style="margin-top:8px"><span data-i18n="favTitle">⭐ 즐겨찾는 역</span> <span id="favCount" style="color:var(--accent);font-weight:800"></span></button>
     <p class="muted" id="seniorEntryHint" data-i18n="seniorEntryHint" style="margin:8px 2px 16px">내 위치에서 가까운 역을 찾아, 상행·하행 다음 열차가 몇 분 뒤 오는지 큰 글씨로 알려드려요.</p>
     <hr style="border:none;border-top:1px solid var(--line);margin:6px 0 16px">
 
@@ -356,7 +357,9 @@
   <section id="stepArrive" class="card hide">
     <button class="btn ghost" id="arriveChangeStation" data-i18n="changeStation" style="margin:0 0 12px">📍 다른 역 고르기</button>
     <div class="arrive-head">
-      <div class="arrive-stn" id="arriveStn">—</div>
+      <div class="arrive-stn"><span id="arriveStnName">—</span>
+        <button id="favStar" title="즐겨찾기" style="background:none;border:none;cursor:pointer;font-size:.85em;vertical-align:middle;color:#f2c94c">☆</button>
+      </div>
       <div class="muted" id="arriveSub"></div>
     </div>
     <div class="walkbox" id="walkBox"></div>
@@ -514,6 +517,16 @@
     <div id="nearbyList"></div>
     <button class="btn primary" id="nearbyMapPick" data-i18n="mapPick" style="margin-top:10px">🗺️ 노선도에서 직접 고르기</button>
     <button class="btn ghost" id="nearbyClose" data-i18n="close" style="margin-top:10px">닫기</button>
+  </div>
+</div>
+
+<!-- 즐겨찾는 역 팝업 -->
+<div id="favModal" class="modal hide">
+  <div class="modal-card">
+    <h2 data-i18n="favTitle" style="margin:0 0 6px">⭐ 즐겨찾는 역</h2>
+    <p class="muted" id="favMsg" style="margin:0 0 12px"></p>
+    <div id="favList"></div>
+    <button class="btn ghost" id="favClose" data-i18n="close" style="margin-top:10px">닫기</button>
   </div>
 </div>
 
@@ -942,7 +955,7 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       pts.push({x, y, nx, ny, side, ang:0});
     }
   } else {
-    const pad=44, spacing=92, rowGap=104;     // 간격 축소
+    const pad=44, spacing=92, rowGap=150;     // 행 간격(상행 위/하행 아래 + 역명 자리 확보)
     cols=Math.max(2, Math.floor((W-2*pad)/spacing)+1);
     const rows=Math.ceil(n/cols);
     const colGap=cols>1?(W-2*pad)/(cols-1):0;
@@ -974,7 +987,7 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
         else if (p.side === 'bottom') { tx = p.x; ty = p.y - 12; anchor = 'middle'; }
         else if (p.side === 'right') { tx = p.x - 12; ty = p.y + 4; anchor = 'end'; }
         else if (p.side === 'left') { tx = p.x + 12; ty = p.y + 4; anchor = 'start'; }
-      } else { tx=p.x; ty=p.y+18; anchor='middle'; }
+      } else { tx=p.x; ty=p.y+20; anchor='middle'; } // S자: 역명은 선 바로 아래 전용 영역(가려지지 않음)
       const t=svgEl('text',{x:tx.toFixed(1), y:ty.toFixed(1), 'text-anchor':anchor, 'font-size':cur?13:11, 'font-weight':cur?800:700, fill:cur?'#fff':'#aab9d6'});
       t.textContent=order[i]; stGroup.appendChild(t);
     }
@@ -1002,10 +1015,9 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       y = p.y + p.ny * totalShift;
     }
     else {
-      // 상행(0) = 위(y - 22 - k*20) | 하행(1) = 아래(y + 22 + k*20)
-      const dirOffset = up ? -22 : 22;
-      const shift = dirOffset + (up ? -k * 20 : k * 20);
-      x=p.x; y=p.y+shift;
+      // 상행(0) = 선 위(y - 26 - k*20) | 하행(1) = 역명 '아래'(y + 44 + k*20) → 역명을 가리지 않음
+      x = p.x;
+      y = up ? (p.y - 26 - k*20) : (p.y + 44 + k*20);
     }
     
     // 지하철 이동 방향 판별
@@ -1492,6 +1504,7 @@ window.agOnLogin = function(user){
   setProfile(user);
   toast((user.name||'환영합니다')+'님 로그인');
   speak(`${user.name||''}님 환영해요.`);
+  if(typeof syncFavoritesOnLogin==='function') setTimeout(syncFavoritesOnLogin, 300); // 클라우드 즐겨찾기 병합
   resetAll(); // step0로 진입하며 실시간 열차 로드
 };
 window.agShowLogin = function(){
@@ -1638,7 +1651,7 @@ const I18N = {
     missV:'이번 열차는 어려워요. 다음 열차를 타세요 🟢', after:'다음', manualHint:'역 이름을 입력해 찾으세요', searchPh:'예: 강남, 시청…',
     spkArrive:'{stn}역입니다. 상행 다음 열차는 {u}, 하행 다음 열차는 {d}입니다.', spkRun:'천천히 가셔도 탑니다. 뛰지 마세요.',
     arriveMapHint:'🗺️ 흰 점이 내가 선택한 역, 노란 테두리 열차가 이 역으로 오는 열차예요.',
-    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.' },
+    mapPick:'🗺️ 노선도에서 직접 고르기', pickFromMap:'🗺️ 노선도에서 역을 직접 고르세요', pickFromMapHint:'호선을 고른 뒤, 내가 있는 역을 누르면 도착정보로 이동해요.', favTitle:'⭐ 즐겨찾는 역', favEmpty:'아직 즐겨찾는 역이 없어요. 도착화면에서 ☆를 눌러 추가하세요.', favAdded:'즐겨찾기에 추가했어요', favRemoved:'즐겨찾기에서 뺐어요', favLocalOnly:'구글 로그인하면 즐겨찾기가 계정에 저장돼요.' },
   en:{ seniorEntry:'📍 Nearby stations · Next train arrivals', seniorEntryHint:'Find the closest station to you and see, in large text, how many minutes until the next train in each direction.',
     findTrainTitle:'📍 Finding your train…', changeStation:'📍 Choose another station', refresh:'🔄 Refresh', home:'🏠 Home',
     arriveDisc:'Arrival times are live Seoul data. Please walk safely, no need to rush.', nearbyTitle:'📍 Choose a nearby station', close:'Close',
@@ -1649,7 +1662,7 @@ const I18N = {
     missV:'Hard to catch this one. Take the next train 🟢', after:'Next', manualHint:'Type a station name to search', searchPh:'e.g. Gangnam, City Hall…',
     spkArrive:'{stn} station. Next up-bound train {u}, next down-bound train {d}.', spkRun:'You can walk slowly. No need to run.',
     arriveMapHint:'🗺️ The white dot is your station; trains with a yellow border are heading to it.',
-    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.' },
+    mapPick:'🗺️ Pick directly from the route map', pickFromMap:'🗺️ Pick your station from the route map', pickFromMapHint:'Choose a line, then tap the station you are at to see arrivals.', favTitle:'⭐ Favorite stations', favEmpty:'No favorites yet. Tap ☆ on the arrival screen to add.', favAdded:'Added to favorites', favRemoved:'Removed from favorites', favLocalOnly:'Sign in with Google to save favorites to your account.' },
   zh:{ seniorEntry:'📍 附近车站 · 下趟列车到达', seniorEntryHint:'查找离您最近的车站，用大字显示上行、下行下趟列车几分钟后到达。',
     findTrainTitle:'📍 正在查找您的列车…', changeStation:'📍 选择其他车站', refresh:'🔄 刷新', home:'🏠 首页',
     arriveDisc:'到达信息为首尔实时数据。请慢慢安全地走，不必着急。', nearbyTitle:'📍 请选择附近车站', close:'关闭',
@@ -1660,7 +1673,7 @@ const I18N = {
     missV:'这趟很难赶上，请乘坐下一趟 🟢', after:'下趟', manualHint:'输入站名搜索', searchPh:'例：江南、市厅…',
     spkArrive:'{stn}站。上行下趟列车{u}，下行下趟列车{d}。', spkRun:'慢慢走也来得及，不用跑。',
     arriveMapHint:'🗺️ 白点是您选择的车站，黄色边框的列车正驶向该站。',
-    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。' },
+    mapPick:'🗺️ 在线路图上直接选择', pickFromMap:'🗺️ 在线路图上选择车站', pickFromMapHint:'选择线路后，点按您所在的车站即可查看到达信息。', favTitle:'⭐ 收藏车站', favEmpty:'还没有收藏。在到达页点 ☆ 添加。', favAdded:'已加入收藏', favRemoved:'已取消收藏', favLocalOnly:'使用谷歌登录可将收藏保存到账户。' },
   ja:{ seniorEntry:'📍 近くの駅 · 次の電車の到着', seniorEntryHint:'現在地から近い駅を探し、上り・下りの次の電車が何分後に来るかを大きな文字でお知らせします。',
     findTrainTitle:'📍 乗っている電車を探しています…', changeStation:'📍 別の駅を選ぶ', refresh:'🔄 更新', home:'🏠 ホーム',
     arriveDisc:'到着情報はソウルのリアルタイムデータです。急がず安全に移動してください。', nearbyTitle:'📍 近くの駅を選んでください', close:'閉じる',
@@ -1671,7 +1684,7 @@ const I18N = {
     missV:'この電車は難しいです。次の電車に乗ってください 🟢', after:'次', manualHint:'駅名を入力して検索', searchPh:'例: 江南、市庁…',
     spkArrive:'{stn}駅です。上りの次の電車は{u}、下りの次の電車は{d}です。', spkRun:'ゆっくり歩いても大丈夫です。走らないでください。',
     arriveMapHint:'🗺️ 白い点が選んだ駅、黄色い枠の電車がこの駅に向かう電車です。',
-    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。' }
+    mapPick:'🗺️ 路線図から直接選ぶ', pickFromMap:'🗺️ 路線図から駅を選んでください', pickFromMapHint:'路線を選び、今いる駅を押すと到着情報に移動します。', favTitle:'⭐ お気に入り駅', favEmpty:'お気に入りがありません。到着画面で☆を押して追加。', favAdded:'お気に入りに追加', favRemoved:'お気に入りから削除', favLocalOnly:'Googleでログインすると、お気に入りがアカウントに保存されます。' }
 };
 let currentLang = localStorage.getItem('tj_lang') || 'ko';
 function t(key, vars){
@@ -1870,12 +1883,76 @@ function pickStationByName(name){
   openArrive(stn);
 }
 
+// ================= 즐겨찾는 역 (Firestore 동기화 + localStorage) =================
+let favorites = [];
+try{ favorites = JSON.parse(localStorage.getItem('tj_favs')||'[]')||[]; }catch(e){ favorites=[]; }
+function isFav(name){ return favorites.includes(name); }
+function persistFavs(){
+  localStorage.setItem('tj_favs', JSON.stringify(favorites));
+  if(window.agSaveFavorites) window.agSaveFavorites(favorites);  // 로그인 시 Firestore에 저장
+  updateFavCount();
+}
+function toggleFav(name){
+  if(!name) return;
+  if(isFav(name)) favorites=favorites.filter(n=>n!==name);
+  else favorites=[name, ...favorites].slice(0,30);
+  persistFavs();
+}
+function updateFavCount(){ const el=document.getElementById('favCount'); if(el) el.textContent=favorites.length?`(${favorites.length})`:''; }
+function updateFavStar(){
+  const st=document.getElementById('favStar'); if(!st||!_arriveStn) return;
+  const on=isFav(_arriveStn.name);
+  st.textContent=on?'★':'☆'; st.style.color=on?'#f2c94c':'#9fb2d4';
+}
+// 로그인 시 클라우드 즐겨찾기 불러와 로컬과 병합
+async function syncFavoritesOnLogin(){
+  if(!window.agLoadFavorites) return;
+  const cloud=await window.agLoadFavorites();
+  if(Array.isArray(cloud)){
+    const merged=[...new Set([...cloud, ...favorites])];
+    favorites=merged; localStorage.setItem('tj_favs', JSON.stringify(favorites));
+    if(window.agSaveFavorites && merged.length!==cloud.length) window.agSaveFavorites(favorites);
+    updateFavCount();
+  }
+}
+function openFavModal(){
+  const list=document.getElementById('favList'), msg=document.getElementById('favMsg');
+  document.getElementById('favModal').classList.remove('hide');
+  msg.textContent = favorites.length ? (window.agLoadFavorites?'':t('favLocalOnly')) : t('favEmpty');
+  loadStations().then(()=>{
+    list.innerHTML='';
+    favorites.forEach(name=>{
+      const s=(_stations||[]).find(x=>x.name===name) || {name, lines:[]};
+      const b=document.createElement('button'); b.className='nearby-item';
+      b.innerHTML=`<div><div class="nm">${nameFor(s)}${t('stationSuffix')}</div><div class="meta">${lineTags(s.lines||[])}</div></div>`
+        +`<span class="walk fav-del" data-del="1" style="color:#eb5757;font-size:1.1em">✕</span>`;
+      b.addEventListener('click',(e)=>{
+        if(e.target.classList && e.target.classList.contains('fav-del')){ toggleFav(name); openFavModal(); return; }
+        document.getElementById('favModal').classList.add('hide');
+        const stn=Object.assign({}, s);
+        stn.dist=(_myPos&&s.lat)?haversine(_myPos.lat,_myPos.lng,s.lat,s.lng):null;
+        openArrive(stn);
+      });
+      list.appendChild(b);
+    });
+  });
+}
+document.getElementById('favEntry').addEventListener('click', openFavModal);
+document.getElementById('favClose').addEventListener('click', ()=>document.getElementById('favModal').classList.add('hide'));
+document.getElementById('favStar').addEventListener('click', ()=>{
+  if(!_arriveStn) return;
+  toggleFav(_arriveStn.name); updateFavStar();
+  toast(isFav(_arriveStn.name)?t('favAdded'):t('favRemoved'));
+});
+updateFavCount();
+
 function renderArriveStatic(){
-  document.getElementById('arriveStn').textContent=nameFor(_arriveStn)+t('stationSuffix');
+  document.getElementById('arriveStnName').textContent=nameFor(_arriveStn)+t('stationSuffix');
   document.getElementById('arriveSub').innerHTML=lineTags(_arriveStn.lines);
   const wb=document.getElementById('walkBox');
   if(_myPos && _arriveStn.dist!=null){ wb.style.display=''; wb.innerHTML=`🚶 ${t('walkFromYou')} <b>${walkMin(_arriveStn.dist)}${t('min')}</b> (${Math.round(_arriveStn.dist)}m)`; }
   else { wb.style.display='none'; }
+  if(typeof updateFavStar==='function') updateFavStar();
 }
 async function openArrive(stn){
   _arriveStn=stn;
@@ -1991,6 +2068,8 @@ window.agShowLogin();
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { getAnalytics, isSupported }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+  import { getFirestore, doc, getDoc, setDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // sit-down-subway 웹앱 (Firebase 프로젝트: desk-rpg)
   const firebaseConfig = {
@@ -2005,13 +2084,26 @@ window.agShowLogin();
   };
 
   const CONFIGURED = !String(firebaseConfig.apiKey).startsWith("YOUR_");
-  let auth = null, storage = null;
+  let auth = null, storage = null, db = null;
 
   if (CONFIGURED) {
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     storage = getStorage(app);
+    db = getFirestore(app);
     isSupported().then(ok => { if (ok) { try { getAnalytics(app); } catch (e) {} } });
+
+    // 즐겨찾기(역명) — Firestore users/{uid}.favorites 에 저장 (기존 보안 규칙: 본인만 읽기/쓰기)
+    window.agLoadFavorites = async () => {
+      const u = auth.currentUser; if (!u) return null;
+      try { const s = await getDoc(doc(db, 'users', u.uid)); return (s.exists() && s.data().favorites) || []; }
+      catch (e) { return null; }
+    };
+    window.agSaveFavorites = async (arr) => {
+      const u = auth.currentUser; if (!u) return false;
+      try { await setDoc(doc(db, 'users', u.uid), { favorites: arr, uid: u.uid }, { merge: true }); return true; }
+      catch (e) { return false; }
+    };
 
     // 이미 로그인된 사용자가 있으면 자동 진입
     onAuthStateChanged(auth, (u) => {

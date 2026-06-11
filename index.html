@@ -104,6 +104,9 @@
     display:flex; align-items:center; justify-content:center; color:#9fb2d4; font-size:.72em; font-weight:800;
     letter-spacing:1px; cursor:ns-resize; user-select:none; touch-action:none;}
   .map-resize:active{background:#1a2c4d; color:#cdd8ef;}
+  /* 2호선 동그라미 열차: 호버 시 강조(번호는 title 툴팁으로 표시) */
+  .traindot{transition:.12s ease;}
+  .linemap g:hover > .traindot{stroke:#fff; stroke-width:3;}
   .linerail-wrap{position:relative;}
   .linerail{position:relative; height:6px; background:#3a5a8c; border-radius:999px; margin:0 14px;}
   .linestop{position:absolute; top:-3px; width:11px; height:11px; border-radius:50%; background:#16243f; border:2px solid #5a78aa; transform:translateX(-50%); z-index:1;}
@@ -1059,24 +1062,27 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       g.addEventListener('click',()=>selectTrain(t));
     } // 도착화면(arriveMap)은 정보 표시 전용(클릭으로 참여 플로우 진입 안 함)
 
-    // 열차 핀: 잘 보이도록 단색 알약(둥근 사각). 선택 시 노란색, 도착예정(eta) 열차는 노란 테두리 강조.
-    g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
-      fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730'), 'stroke-width': (sel||hasEta)?3:2}));
-
-    // 텍스트 대비 색상
-    let textCol = '#fff';
-    if(sel) {
-      textCol = '#222';
+    // 2호선(순환선) 평상시 열차 = 동그라미(번호는 호버 툴팁). 단, 선택/도착예정(ETA) 열차는 번호 full 표시.
+    const asDot = isLoop && !hasEta && !sel;
+    if (asDot) {
+      const c = svgEl('circle', {cx:0, cy:0, r:7.5, fill:col, stroke:'#0b1730', 'stroke-width':2});
+      c.setAttribute('class','traindot');
+      g.appendChild(c);
     } else {
-      const r = parseInt(col.substr(1,2),16)||0;
-      const gr = parseInt(col.substr(3,2),16)||0;
-      const b = parseInt(col.substr(5,2),16)||0;
-      textCol = ((r*299 + gr*587 + b*114)/1000 >= 140) ? '#111' : '#fff';
+      // 열차 핀: 단색 알약. 선택 시 노란색, 도착예정(ETA) 열차는 노란 테두리 강조.
+      g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
+        fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730'), 'stroke-width': (sel||hasEta)?3:2}));
+      // 텍스트 대비 색상
+      let textCol = '#fff';
+      if(sel) { textCol = '#222'; }
+      else {
+        const r = parseInt(col.substr(1,2),16)||0, gr = parseInt(col.substr(3,2),16)||0, b = parseInt(col.substr(5,2),16)||0;
+        textCol = ((r*299 + gr*587 + b*114)/1000 >= 140) ? '#111' : '#fff';
+      }
+      const tt=svgEl('text',{x:0, y:5, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
+      tt.textContent=label;
+      g.appendChild(tt);
     }
-
-    const tt=svgEl('text',{x:0, y:5, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
-    tt.textContent=label; 
-    g.appendChild(tt);
     
     const title=svgEl('title'); 
     title.textContent=`${t.trainNo}열차 · ${(t.statnTnm||'').replace(/역$/,'')}행 · 현재 ${cur}${t.isGhost ? ' (이전 위치)' : ''}`; 

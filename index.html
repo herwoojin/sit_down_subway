@@ -727,13 +727,18 @@ function renderQuota(){
   // 게스트는 '1일 10회' 잔여로 표기
   if(state.isGuest){ updateGuestBadge(); return; }
   if(apiCalls.date!==_today()) apiCalls={date:_today(),count:0};
-  const used=apiCalls.count, limit=1000, left=Math.max(0, limit-used);
+  const used=apiCalls.count;
   const kind = state.userApiKey ? '내 키' : '공용 키';
-  const color = used>=950?'#eb5757':(used>=800?'#f2994a':'#9fb2d4');
   const q=document.getElementById('quotaInfo');
-  if(q) q.innerHTML=`오늘 호출 <b style="color:${color}">${used}</b>/${limit} (${kind})`;
   const q2=document.getElementById('quotaInfo2');
-  if(q2) q2.innerHTML=`오늘 이 기기에서 약 <b style="color:${color}">${used}건</b> 호출 · 남은 한도 약 <b>${left}건</b> (${kind}, 자정 리셋)`;
+  // 서버가 한도초과(ERROR-337)로 응답 중이면, 로컬 카운터와 무관하게 '초과'를 우선 표기(일관성)
+  if(state.apiLimited){
+    if(q) q.innerHTML=`<b style="color:#eb5757">⚠️ 키 한도 초과</b> (서버 기준 · ${kind})`;
+    if(q2) q2.innerHTML=`이 키는 <b style="color:#eb5757">오늘 서버 호출 한도(1,000건)에 도달</b>했어요(다른 곳·이전 사용 포함). 새 키를 발급하거나 자정(KST) 이후 이용하세요. <span class="muted">(이 기기 시도 약 ${used}회 — 키 실제 사용량과 다를 수 있음)</span>`;
+    return;
+  }
+  if(q) q.innerHTML=`오늘 이 기기에서 약 <b style="color:#9fb2d4">${used}</b>회 호출 (${kind})`;
+  if(q2) q2.innerHTML=`이 기기에서 오늘 약 <b>${used}회</b> 호출 (${kind}). <span class="muted">※ 키의 실제 잔여 한도(1,000건/일)는 서울 열린데이터광장 마이페이지에서 확인하세요. 이 숫자는 이 기기 기준 근사치예요.</span>`;
 }
 // ===== 게스트(뷰어) 모드: 전용 키 + 1일 10회 새로고침 제한(로컬) =====
 const GUEST_KEY='515a4a47686865723130327650664576';
@@ -767,8 +772,8 @@ async function fetchTrainPosition(line){
   let list = [];
   try {
     const d1 = await seoulApi(`realtimePosition/1/100/${line}`);
-    if(d1 && d1.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); }
-    if(d1 && d1.realtimePositionList){ list = list.concat(d1.realtimePositionList); state.apiLimited=false; }
+    if(d1 && d1.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); if(typeof renderQuota==='function') renderQuota(); }
+    if(d1 && d1.realtimePositionList){ list = list.concat(d1.realtimePositionList); state.apiLimited=false; if(typeof renderQuota==='function') renderQuota(); }
     // API 제한(100대)을 우회하기 위해 추가 페이지 호출
     if(list.length >= 90) {
       const d2 = await seoulApi(`realtimePosition/101/200/${line}`);
@@ -786,8 +791,8 @@ async function fetchTrainPosition(line){
 // 서울시 실시간 도착정보: .../json/realtimeStationArrival/0/{N}/{역명}
 async function fetchArrival(station){
   const data = await seoulApi(`realtimeStationArrival/0/10/${station}`);
-  if(data && data.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); }
-  if(data && data.realtimeArrivalList) state.apiLimited=false;
+  if(data && data.code==='ERROR-337'){ state.apiLimited=true; state.apiLimitedAt=Date.now(); if(typeof renderQuota==='function') renderQuota(); }
+  if(data && data.realtimeArrivalList){ state.apiLimited=false; if(typeof renderQuota==='function') renderQuota(); }
   return (data.realtimeArrivalList) || [];
 }
 
@@ -889,7 +894,9 @@ async function loadTrains(silent = false){
     state.live=false;
     if (!silent) {
       msg.innerHTML = state.apiLimited
-        ? `오늘 실시간 <b>호출 한도(1,000건/일)</b>를 초과했어요. <span style="font-size:.82em">자정(00시) 이후 자동으로 정상화돼요.</span> <span class="livebadge off">한도 초과</span>`
+        ? (state.userApiKey
+            ? `<b>내 키</b>의 오늘 호출 한도(1,000건)에 도달했어요. <span style="font-size:.82em">이미 다른 곳/이전에 사용됐을 수 있어요. 새 키 발급 또는 자정(KST) 이후 이용하세요.</span> <span class="livebadge off">한도 초과</span>`
+            : `공용 키의 오늘 한도(1,000건/일)를 초과했어요. <span style="font-size:.82em">🔑 <b>내 API 키</b>를 등록하면 바로 정상 이용돼요(아래 버튼). 또는 자정 이후 자동 정상화.</span> <span class="livebadge off">한도 초과</span>`)
         : `이 노선은 지금 <b>운행 정보 없음</b> (막차·운행종료·점검 등) <span class="livebadge off">정보 없음</span>`;
     }
     items.innerHTML='';
@@ -2137,18 +2144,30 @@ async function saveApiKey(){
   if(!/^[A-Za-z0-9]{20,40}$/.test(v)){ toast('인증키 형식이 올바르지 않아요 (영문+숫자 약 30자)'); return; }
   toast('인증키 확인 중…');
   const prev=state.userApiKey; state.userApiKey=v;
-  let ok=false;
-  try{ const d=await seoulApi('realtimePosition/0/5/2호선'); ok = !!(d && d.realtimePositionList); }catch(e){}
-  if(ok){
+  let ok=false, overLimit=false;
+  try{
+    const d=await seoulApi('realtimePosition/0/5/2호선');
+    if(d && d.realtimePositionList) ok=true;
+    else if(d && d.code==='ERROR-337') overLimit=true;
+  }catch(e){}
+  if(ok || overLimit){
     localStorage.setItem('tj_apikey', v);
     if(window.agSaveApiKey) window.agSaveApiKey(v);
-    state.apiLimited=false; updateApiKeyState();
-    document.getElementById('apiModal').classList.add('hide');
-    toast('내 API 키로 저장했어요 ✅');
+    updateApiKeyState();
+    if(ok){
+      state.apiLimited=false;
+      document.getElementById('apiModal').classList.add('hide');
+      toast('내 API 키로 저장했어요 ✅');
+    } else {
+      // 키 형식·등록은 정상이나 오늘 호출 한도에 이미 도달
+      state.apiLimited=true; state.apiLimitedAt=Date.now();
+      toast('키는 저장했지만 오늘은 한도 초과 상태예요. 자정 이후 정상 동작해요.');
+    }
+    renderQuota();
     forceUpdateRealtimeData(true);
   } else {
     state.userApiKey=prev;
-    toast('이 키로 데이터를 못 받았어요. 키/승인 상태를 확인해 주세요.');
+    toast('이 키로 데이터를 못 받았어요. 키 문자열/승인(활용신청) 상태를 확인해 주세요.');
   }
 }
 function deleteApiKey(){

@@ -319,7 +319,7 @@
     <button class="gbtn" id="googleLogin">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">구글로 로그인
     </button>
-    <button class="btn ghost" id="guestLogin">로그인 없이 둘러보기</button>
+    <button class="btn ghost" id="guestLogin">로그인 없이 입장<br><span style="font-size:.78em;opacity:.85;font-weight:600">(1일 10번 새로고침 가능)</span></button>
     <p class="voice-help">로그인은 Firebase 인증을 사용합니다. (설정 전에는 데모로 동작)</p>
   </section>
 
@@ -724,15 +724,37 @@ function bumpApiCalls(){
   renderQuota();
 }
 function renderQuota(){
+  // 게스트는 '1일 10회' 잔여로 표기
+  if(state.isGuest){ updateGuestBadge(); return; }
   if(apiCalls.date!==_today()) apiCalls={date:_today(),count:0};
   const used=apiCalls.count, limit=1000, left=Math.max(0, limit-used);
   const kind = state.userApiKey ? '내 키' : '공용 키';
-  const pct = Math.min(100, Math.round(used/limit*100));
   const color = used>=950?'#eb5757':(used>=800?'#f2994a':'#9fb2d4');
   const q=document.getElementById('quotaInfo');
   if(q) q.innerHTML=`오늘 호출 <b style="color:${color}">${used}</b>/${limit} (${kind})`;
   const q2=document.getElementById('quotaInfo2');
   if(q2) q2.innerHTML=`오늘 이 기기에서 약 <b style="color:${color}">${used}건</b> 호출 · 남은 한도 약 <b>${left}건</b> (${kind}, 자정 리셋)`;
+}
+// ===== 게스트(뷰어) 모드: 전용 키 + 1일 10회 새로고침 제한(로컬) =====
+const GUEST_KEY='515a4a47686865723130327650664576';
+const GUEST_MAX=10;
+function guestRef(){ try{ const o=JSON.parse(localStorage.getItem('tj_guestref')||'{}'); return (o.date===_today())?o:{date:_today(),count:0}; }catch(e){ return {date:_today(),count:0}; } }
+function guestLeft(){ return Math.max(0, GUEST_MAX - guestRef().count); }
+function updateGuestBadge(){
+  const left=guestLeft();
+  const q=document.getElementById('quotaInfo');
+  if(q && state.isGuest) q.innerHTML=`게스트 새로고침 <b style="color:${left<=2?'#eb5757':'#5be08a'}">${left}</b>/${GUEST_MAX} 남음 <span style="opacity:.7">(자정 리셋·로그인 시 무제한)</span>`;
+}
+// 게스트가 데이터 갱신을 시도할 때 호출 — 허용되면 1회 차감, 소진 시 false
+function guestAllow(){
+  if(!state.isGuest) return true;
+  const r=guestRef();
+  if(r.count >= GUEST_MAX){
+    toast('오늘 게스트 새로고침 10회를 모두 사용했어요. 자정 이후 또는 구글 로그인 후 이용하세요.');
+    return false;
+  }
+  r.count++; localStorage.setItem('tj_guestref', JSON.stringify(r)); updateGuestBadge();
+  return true;
 }
 // 자동 갱신 주기(초). 0이면 끔.
 state.pollSec = (function(){ const raw=localStorage.getItem('tj_pollsec'); if(raw===null) return 30; const v=Number(raw); return (v===0||v>=15)?v:30; })();
@@ -820,7 +842,13 @@ async function loadTrains(silent = false){
   const msg=document.getElementById('detectMsg');
   const wrap=document.getElementById('trainList');
   const items=document.getElementById('trainItems');
-  
+
+  // 게스트: 1일 10회 제한. 소진 시 갱신 중단(마지막 화면 유지)
+  if(state.isGuest && !guestAllow()){
+    if(!silent && msg) msg.innerHTML=`게스트 새로고침 <b>10회</b>를 모두 사용했어요. <span style="font-size:.85em">자정 이후 또는 구글 로그인 후 이용하세요.</span> <span class="livebadge off">제한</span>`;
+    return;
+  }
+
   if (!silent) {
     document.getElementById('ctxChips').innerHTML='';
     document.getElementById('confirmCtx').classList.add('hide');
@@ -1614,15 +1642,25 @@ function setProfile(user){
 }
 window.agOnLogin = function(user){
   state.user = user;
-  setProfile(user);
-  toast((user.name||'환영합니다')+'님 로그인');
-  speak(`${user.name||''}님 환영해요.`);
-  if(typeof syncFavoritesOnLogin==='function') setTimeout(syncFavoritesOnLogin, 300); // 클라우드 즐겨찾기 병합
-  if(typeof syncApiKeyOnLogin==='function') setTimeout(syncApiKeyOnLogin, 350);        // 클라우드 API키 불러오기
+  state.isGuest = !!user.guest;
+  if(state.isGuest){
+    // 게스트(뷰어): 전용 키 사용 + 자동 갱신 끔(1일 10회 보호)
+    state.userApiKey = GUEST_KEY;
+    state.pollSec = 0; applyPollInterval();
+    setProfile({name:'게스트'});   // 나가기(로그인 화면 복귀) 버튼 표시
+    updateGuestBadge();
+    toast(`게스트로 입장 (오늘 새로고침 ${guestLeft()}/${GUEST_MAX} 남음)`);
+  } else {
+    setProfile(user);
+    toast((user.name||'환영합니다')+'님 로그인');
+    speak(`${user.name||''}님 환영해요.`);
+    if(typeof syncFavoritesOnLogin==='function') setTimeout(syncFavoritesOnLogin, 300);
+    if(typeof syncApiKeyOnLogin==='function') setTimeout(syncApiKeyOnLogin, 350);
+  }
   resetAll(); // step0로 진입하며 실시간 열차 로드
 };
 window.agShowLogin = function(){
-  state.user=null;
+  state.user=null; state.isGuest=false;
   document.getElementById('profileBtn').classList.add('hide');
   showSection('stepLogin');
 };
@@ -1828,7 +1866,7 @@ function applyLang(lang){
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('.langbtn').forEach(b=>b.classList.toggle('sel', b.dataset.lang===currentLang));
   // 열려 있는 화면들 다시 그려 번역 반영
-  if(!document.getElementById('stepArrive').classList.contains('hide') && _arriveStn) { renderArriveStatic(); renderArrive(); }
+  if(!document.getElementById('stepArrive').classList.contains('hide') && _arriveStn) { renderArriveStatic(); } // 라벨만 번역(재조회 안 함)
   const sp=document.getElementById('stepStationPick');
   if(sp && !sp.classList.contains('hide')){ const sel=document.querySelector('#pickLineChips .chip.sel'); const ln=sel?sel.textContent:'2호선'; renderPickLineChips(ln); renderRoute(ln); }
   const nm=document.getElementById('nearbyModal');
@@ -2189,6 +2227,8 @@ function buildDirCard(dirKey, arr){
 async function renderArrive(opts){
   opts=opts||{};
   if(!_arriveStn) return;
+  // 게스트: 1일 10회 제한 (소진 시 갱신 중단, 마지막 정보 유지)
+  if(state.isGuest && !guestAllow()){ const u=document.getElementById('arriveUpd'); if(u) u.textContent='게스트 새로고침 10회 모두 사용 (자정 리셋·로그인 시 무제한)'; return; }
   const box=document.getElementById('arriveCards');
   let list=[];
   try{ list=await fetchArrival(_arriveStn.name); }catch(e){}

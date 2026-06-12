@@ -1056,6 +1056,23 @@ function buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta){
   tt.textContent = numText;
   g.appendChild(tt);
 }
+// 마우스 올리면 '즉시' 뜨는 커스텀 툴팁(네이티브 <title> 지연 제거용)
+let _pinTipEl=null;
+function _ensurePinTip(){
+  if(_pinTipEl) return _pinTipEl;
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;z-index:9999;pointer-events:none;background:#0b1730;color:#fff;'
+    +'font-size:12px;font-weight:700;padding:5px 9px;border-radius:8px;border:1px solid #6f8cc0;'
+    +'box-shadow:0 4px 14px rgba(0,0,0,.45);white-space:nowrap;display:none;';
+  document.body.appendChild(d); _pinTipEl=d; return d;
+}
+function showPinTip(text,e){ const d=_ensurePinTip(); d.textContent=text; d.style.display='block'; movePinTip(e); }
+function movePinTip(e){ const d=_pinTipEl; if(!d) return; let x=e.clientX+14, y=e.clientY+14;
+  const w=d.offsetWidth, h=d.offsetHeight;
+  if(x+w>innerWidth-6) x=e.clientX-w-14; if(y+h>innerHeight-6) y=e.clientY-h-14;
+  d.style.left=x+'px'; d.style.top=y+'px'; }
+function hidePinTip(){ if(_pinTipEl) _pinTipEl.style.display='none'; }
+
 let _mapList=[];          // 마지막으로 그린 열차 목록 (리사이즈 재렌더용)
 let _mapListLine=null;    // _mapList가 어느 노선의 스냅샷인지
 let _mapRO=null, _mapRAF=0;
@@ -1221,6 +1238,7 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
 
     // 2호선(순환선) 평상시 열차 = 동그라미(번호는 호버 툴팁). 단, 선택/도착예정(ETA) 열차는 번호 full 표시.
     const asDot = isLoop && !hasEta && !sel;
+    let customTip=false;   // 커스텀 즉시 툴팁을 붙였으면 느린 네이티브 title은 생략
     if (asDot) {
       // 진행 방향을 향하는 삼각형
       const S=8.5;
@@ -1232,6 +1250,14 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       const tri = svgEl('polygon', {points:pts, fill:col, stroke:'#0b1730', 'stroke-width':2, 'stroke-linejoin':'round'});
       tri.setAttribute('class','traindot');
       g.appendChild(tri);
+      // 마우스만 올리면 '즉시' 열차번호 표시(네이티브 title 지연 없이)
+      if(!t.isGhost){
+        const tipText=`${t.trainNo}열차 · ${(t.statnTnm||'').replace(/역$/,'')}행`;
+        g.addEventListener('mouseenter', e=>showPinTip(tipText, e));
+        g.addEventListener('mousemove', movePinTip);
+        g.addEventListener('mouseleave', hidePinTip);
+        customTip=true;
+      }
     } else {
       // 텍스트 대비 색상
       let textCol = '#fff';
@@ -1255,9 +1281,11 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       }
     }
     
-    const title=svgEl('title'); 
-    title.textContent=`${t.trainNo}열차 · ${(t.statnTnm||'').replace(/역$/,'')}행 · 현재 ${cur}${t.isGhost ? ' (이전 위치)' : ''}`; 
-    g.appendChild(title);
+    if(!customTip){
+      const title=svgEl('title');
+      title.textContent=`${t.trainNo}열차 · ${(t.statnTnm||'').replace(/역$/,'')}행 · 현재 ${cur}${t.isGhost ? ' (이전 위치)' : ''}`;
+      g.appendChild(title);
+    }
     
     svg.appendChild(g);
   });

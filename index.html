@@ -1030,6 +1030,32 @@ function onCarChange(){
 // ---- SVG 헬퍼 ----
 const SVGNS='http://www.w3.org/2000/svg';
 function svgEl(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in (attrs||{})) e.setAttribute(k,attrs[k]); return e; }
+
+// 열차 핀을 '지하철 차량 모양'으로 그린다(2호선 순환선 제외 전 노선 공통).
+// 진행 방향으로 앞코(전면 유선형)가 향하고, 차체에 열차번호를 그대로 표기한다.
+function buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta){
+  const facingLeft = (moveDir === 'left');
+  const bodyW = Math.max(46, (numText.length*8.2) + 30);
+  const hw = bodyW/2;
+  const strokeCol = sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730');
+  const fillCol   = sel ? '#ffd54f' : col;
+  // 차체는 오른쪽을 앞코로 그린 뒤, 왼쪽 진행이면 통째로 좌우 반전
+  const shape = svgEl('g', facingLeft ? {transform:'scale(-1,1)'} : {});
+  const d = `M ${-hw+3} -9 Q ${-hw} -9 ${-hw} -5 L ${-hw} 6 Q ${-hw} 9 ${-hw+3} 9 `
+          + `L ${hw-12} 9 Q ${hw} 9 ${hw} 0 C ${hw} -6 ${hw-6} -9 ${hw-14} -9 Z`;
+  shape.appendChild(svgEl('path',{d, fill:fillCol, stroke:strokeCol, 'stroke-width':(sel||hasEta)?3:2, 'stroke-linejoin':'round'}));
+  // 전면 유선형 창(앞유리)
+  shape.appendChild(svgEl('path',{d:`M ${hw-3} -6.5 C ${hw-9} -6.5 ${hw-12} -3.5 ${hw-13} 0.5 L ${hw-7} 1.5 C ${hw-6} -1.5 ${hw-4} -3.5 ${hw-2} -3.5 Z`, fill:'#ffffff', opacity:0.92}));
+  // 바퀴 2개
+  shape.appendChild(svgEl('circle',{cx:(-hw*0.45).toFixed(1), cy:11, r:2.6, fill:'#0b1730'}));
+  shape.appendChild(svgEl('circle',{cx:(hw*0.30).toFixed(1),  cy:11, r:2.6, fill:'#0b1730'}));
+  g.appendChild(shape);
+  // 열차번호(반전되지 않게 별도로 그림). 앞코 반대쪽으로 살짝 밀어 가독성 확보
+  const shift = facingLeft ? 5 : -5;
+  const tt = svgEl('text',{x:shift, y:4, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
+  tt.textContent = numText;
+  g.appendChild(tt);
+}
 let _mapList=[];          // 마지막으로 그린 열차 목록 (리사이즈 재렌더용)
 let _mapListLine=null;    // _mapList가 어느 노선의 스냅샷인지
 let _mapRO=null, _mapRAF=0;
@@ -1207,9 +1233,6 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       tri.setAttribute('class','traindot');
       g.appendChild(tri);
     } else {
-      // 열차 핀: 단색 알약. 선택 시 노란색, 도착예정(ETA) 열차는 노란 테두리 강조.
-      g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
-        fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730'), 'stroke-width': (sel||hasEta)?3:2}));
       // 텍스트 대비 색상
       let textCol = '#fff';
       if(sel) { textCol = '#222'; }
@@ -1217,9 +1240,19 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
         const r = parseInt(col.substr(1,2),16)||0, gr = parseInt(col.substr(3,2),16)||0, b = parseInt(col.substr(5,2),16)||0;
         textCol = ((r*299 + gr*587 + b*114)/1000 >= 140) ? '#111' : '#fff';
       }
-      const tt=svgEl('text',{x:0, y:5, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
-      tt.textContent=label;
-      g.appendChild(tt);
+      if(!isLoop){
+        // 2호선(순환선) 제외 전 노선: 열차를 '차량 모양'으로 표시(번호는 차체에 유지)
+        let numText = String(t.trainNo);
+        if (hasEta) numText += ' · ' + t.__eta;
+        buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta);
+      } else {
+        // 2호선 선택/도착예정 열차: 기존 단색 알약 유지
+        g.appendChild(svgEl('rect',{x:(-wpx/2).toFixed(1), y:-12, width:wpx.toFixed(1), height:24, rx:12,
+          fill: sel ? '#ffd54f' : col, stroke: sel ? '#ffffff' : (hasEta ? '#ffd54f' : '#0b1730'), 'stroke-width': (sel||hasEta)?3:2}));
+        const tt=svgEl('text',{x:0, y:5, fill:textCol, 'font-size':12, 'font-weight':800, 'text-anchor':'middle'});
+        tt.textContent=label;
+        g.appendChild(tt);
+      }
     }
     
     const title=svgEl('title'); 

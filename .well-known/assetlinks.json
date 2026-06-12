@@ -3,10 +3,8 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "app.netlify.sit_down_subway.twa",
-      "sha256_cert_fingerprints": [
-        "REPLACE_WITH_YOUR_APP_SIGNING_SHA256_FINGERPRINT"
-      ]
+      "package_name": "app.netlify.app_25i.twa",
+      "sha256_cert_fingerprints": ["FF:10:4B:CF:6C:8A:74:D3:99:7B:6E:55:B4:F9:04:6A:02:1D:56:3D:D5:55:0E:82:38:7E:7D:5E:B9:00:47:0E"]
     }
   }
 ]

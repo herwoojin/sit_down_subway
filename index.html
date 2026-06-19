@@ -1031,6 +1031,25 @@ function onCarChange(){
 const SVGNS='http://www.w3.org/2000/svg';
 function svgEl(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in (attrs||{})) e.setAttribute(k,attrs[k]); return e; }
 
+// 환승역: 갈아탈 수 있는 노선명을 노선색 알약으로 한 줄에 그린다(데이터는 stations.json의 실제 lines[]).
+function buildXferTags(parent, lines, cx, cy, anchor){
+  if(!lines || !lines.length) return;
+  const fs=9, padX=4, gap=3, h=13;
+  const items=lines.map(l=>({label:lineLabel(l), col:(LINE_HEX[l]||'#46587c')}));
+  const widths=items.map(it=>Math.max(13, it.label.length*fs*0.64 + padX*2));
+  const total=widths.reduce((a,b)=>a+b,0)+gap*(items.length-1);
+  let xx = anchor==='middle' ? cx-total/2 : anchor==='end' ? cx-total : cx;
+  items.forEach((it,k)=>{
+    const w=widths[k];
+    parent.appendChild(svgEl('rect',{x:xx.toFixed(1), y:(cy-h/2).toFixed(1), width:w.toFixed(1), height:h, rx:6,
+      fill:it.col, stroke:'#0b1730', 'stroke-width':1}));
+    const tx=svgEl('text',{x:(xx+w/2).toFixed(1), y:(cy+3.2).toFixed(1), 'text-anchor':'middle',
+      'font-size':fs, 'font-weight':800, fill:'#fff'});
+    tx.textContent=it.label; parent.appendChild(tx);
+    xx += w + gap;
+  });
+}
+
 // 열차 핀을 '지하철 차량 모양'으로 그린다(2호선 순환선 제외 전 노선 공통).
 // 진행 방향으로 앞코(전면 유선형)가 향하고, 차체에 열차번호를 그대로 표기한다.
 function buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta){
@@ -1153,7 +1172,17 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       stGroup.appendChild(svgEl('circle', {cx:p.x, cy:p.y, r:24, fill:'transparent'}));
     }
     
-    stGroup.appendChild(svgEl('circle',{cx:p.x, cy:p.y, r:cur?9:5, fill:cur?'#fff':'#16243f', stroke:cur?col:'#6f8cc0', 'stroke-width':cur?4:2.5}));
+    // 환승역(교차역) 판별 — stations.json의 실제 lines[]에서 현재 노선을 뺀 나머지
+    const _st = _stations && _stations.find(s=>s.name===order[i]);
+    const xferLines = _st ? (_st.lines||[]).filter(l=>l!==state.line) : [];
+    const isXfer = xferLines.length>0;
+
+    if(isXfer && !cur){
+      // 환승역은 흰 동그라미 + 노선색 두꺼운 링(지하철 노선도 환승 기호)
+      stGroup.appendChild(svgEl('circle',{cx:p.x, cy:p.y, r:7.5, fill:'#ffffff', stroke:col, 'stroke-width':3.5}));
+    } else {
+      stGroup.appendChild(svgEl('circle',{cx:p.x, cy:p.y, r:cur?9:5, fill:cur?'#fff':'#16243f', stroke:cur?col:'#6f8cc0', 'stroke-width':cur?4:2.5}));
+    }
     if(n<=130){   // 1호선(62역) 등 긴 노선도 역명 표시
       let tx, ty, anchor;
       if(isLoop){
@@ -1167,6 +1196,21 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
       const t=svgEl('text',{x:tx.toFixed(1), y:ty.toFixed(1), 'text-anchor':anchor, 'font-size':cur?13:11, 'font-weight':cur?800:700,
         fill:cur?'#ffffff':'#dbe6fb', stroke:'#0b1730', 'stroke-width':2.6, 'paint-order':'stroke', 'stroke-linejoin':'round'});
       t.textContent=order[i]; stGroup.appendChild(t);
+
+      // 환승역이면 '갈아탈 수 있는 노선명'을 알약으로 표기
+      if(isXfer){
+        let lx, ly, lanchor;
+        if(isLoop){
+          // 순환선: 열차 핀(안/바깥 ±34)을 피해 바깥쪽 자유 영역(±16)에 배치
+          if (p.side === 'top')         { lx = p.x;     ly = p.y - 16; lanchor='middle'; }
+          else if (p.side === 'bottom') { lx = p.x;     ly = p.y + 16; lanchor='middle'; }
+          else if (p.side === 'right')  { lx = p.x + 16; ly = p.y + 4;  lanchor='start';  }
+          else                          { lx = p.x - 16; ly = p.y + 4;  lanchor='end';    }
+        } else {
+          lx = p.x; ly = ty + 13; lanchor='middle'; // S자: 역명 바로 아래
+        }
+        buildXferTags(stGroup, xferLines, lx, ly, lanchor);
+      }
     }
     svg.appendChild(stGroup);
   });

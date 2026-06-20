@@ -946,8 +946,9 @@ async function loadTrains(silent = false){
     items.appendChild(b);
   });
   
+  _animateNext = true;   // 실시간 데이터 갱신 → 열차 핀이 이전 위치에서 새 위치로 미끄러지도록
   renderTrainMap(renderList);
-  
+
   if (!silent) {
     document.getElementById('trainList').classList.add('hide');
     speak(`${state.line} 열차 목록이에요. 지도에서 내가 탄 열차를 골라주세요.`);
@@ -1084,7 +1085,7 @@ function buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta){
 
 // 지선(분기) 스트립: 본선 지도 아래에 가로 한 줄로 그린다(본선 렌더에 영향 없음).
 // 분기역(첫 역)은 본선과 연결점이므로 점만 표시하고, 열차는 분기역을 제외한 지선 전용 역에만 둔다.
-function buildBranchStrip(map, branch, list, col, W){
+function buildBranchStrip(map, branch, list, col, W, animate){
   const sts = branch.stations, n = sts.length;
   const padL = 104, padR = 26, yLine = 48, Hb = 108;
   const usableW = Math.max(120, W - padL - padR);
@@ -1112,7 +1113,8 @@ function buildBranchStrip(map, branch, list, col, W){
     const key=`${i}_${t.updnLine}`, k=seen[key]=(seen[key]||0); seen[key]++;
     const x=xOf(i), y= up ? (yLine-20-k*20) : (yLine+34+k*20);
     const moveDir = up ? 'left' : 'right';
-    const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
+    const g=svgEl('g',{'data-train':t.trainNo});
+    placePin(g, x, y, 'branch:'+branch.name+':'+t.trainNo, animate);
     g.style.cursor='pointer'; g.addEventListener('click',()=>selectTrain(t));
     let textCol='#fff';
     if(sel) textCol='#222';
@@ -1144,9 +1146,31 @@ function hidePinTip(){ if(_pinTipEl) _pinTipEl.style.display='none'; }
 let _mapList=[];          // 마지막으로 그린 열차 목록 (리사이즈 재렌더용)
 let _mapListLine=null;    // _mapList가 어느 노선의 스냅샷인지
 let _mapRO=null, _mapRAF=0;
+// 실시간 이동 연출: 직전 렌더의 열차 화면좌표를 기억해 다음 갱신 때 그 자리→새 자리로 미끄러지게 함
+let _pinAnimPos={};       // key: "<mapId>:<trainNo>" -> {x,y}
+let _animateNext=false;   // 데이터 갱신으로 인한 렌더에서만 애니메이션(리사이즈 렌더는 즉시 이동)
+// 열차 핀 g에 위치를 적용(가능하면 이전 위치에서 새 위치로 트랜지션)
+function placePin(g, x, y, key, animate){
+  const prev = key ? _pinAnimPos[key] : null;
+  const moved = prev && (Math.abs(prev.x-x)>0.5 || Math.abs(prev.y-y)>0.5);
+  if(animate && moved){
+    const ms = Math.min((state.pollSec||30)*1000, 6000);  // 폴링 주기에 맞춰 최대 6초간 천천히 이동
+    g.style.transition = 'none';
+    g.style.transform = `translate(${prev.x.toFixed(1)}px, ${prev.y.toFixed(1)}px)`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      g.style.transition = `transform ${ms}ms linear`;
+      g.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }));
+  } else {
+    g.style.transition = 'none';
+    g.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+  }
+  if(key) _pinAnimPos[key] = {x, y};
+}
 
 // 카카오맵 초정밀 지하철식: 2호선=세로 타원 순환선 / 그 외=S자. 위에 실시간 열차 배치.
 function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
+  const animate = _animateNext; _animateNext = false;   // 이 렌더에만 이동 애니메이션 적용(리사이즈 재렌더 제외)
   if(list && targetMapId === 'lineMap') { _mapList=list; _mapListLine=state.line; }
   else if(targetMapId === 'lineMap') list=_mapList;
   else list = list || _mapList; // Use existing train list for exit picker too
@@ -1316,7 +1340,9 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
     if (hasEta) label += ' · ' + t.__eta;   // __eta는 짧은 문자열(도착/진입/N정거장/N분)
     const wpx = label.length*8.2+16;
 
-    const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
+    const g=svgEl('g',{'data-train':t.trainNo});
+    // 실시간 이동 연출: ghost(이전 위치 흔적)는 고정, 실제 핀만 이전 위치→새 위치로 미끄러짐
+    placePin(g, x, y, t.isGhost ? null : (targetMapId+':'+t.trainNo), animate && !t.isGhost);
     // 도착 지도: 내 역으로 오는 열차(ETA)만 또렷하게, 나머지는 흐리게
     if(targetMapId==='arriveMap' && !hasEta && !sel) g.setAttribute('opacity','0.4');
     
@@ -1387,7 +1413,7 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
 
   // 지선(분기) 스트립 — 본선 아래 별도 표시(라인맵 전용, 본선 렌더 무영향)
   const branches = (targetMapId==='lineMap' && !approx) ? LINE_BRANCHES[state.line] : null;
-  if(branches) branches.forEach(br=>buildBranchStrip(map, br, list, col, W));
+  if(branches) branches.forEach(br=>buildBranchStrip(map, br, list, col, W, animate));
 
   wrap.classList.remove('hide');
   const hint=document.getElementById('mapHint');

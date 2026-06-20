@@ -1081,6 +1081,49 @@ function buildTrainPin(g, numText, moveDir, col, textCol, sel, hasEta){
   tt.textContent = numText;
   g.appendChild(tt);
 }
+
+// 지선(분기) 스트립: 본선 지도 아래에 가로 한 줄로 그린다(본선 렌더에 영향 없음).
+// 분기역(첫 역)은 본선과 연결점이므로 점만 표시하고, 열차는 분기역을 제외한 지선 전용 역에만 둔다.
+function buildBranchStrip(map, branch, list, col, W){
+  const sts = branch.stations, n = sts.length;
+  const padL = 104, padR = 26, yLine = 48, Hb = 108;
+  const usableW = Math.max(120, W - padL - padR);
+  const gap = n>1 ? usableW/(n-1) : 0;
+  const xOf = i => padL + i*gap;
+  const svg = svgEl('svg',{width:W, height:Hb, viewBox:`0 0 ${W} ${Hb}`});
+  svg.style.display='block'; svg.style.marginTop='4px';
+  const lbl = svgEl('text',{x:8, y:yLine+4, 'font-size':12, 'font-weight':800, fill:col, stroke:'#0b1730','stroke-width':2.6,'paint-order':'stroke'});
+  lbl.textContent='↳ '+branch.name; svg.appendChild(lbl);
+  svg.appendChild(svgEl('path',{d:`M ${xOf(0).toFixed(1)} ${yLine} L ${xOf(n-1).toFixed(1)} ${yLine}`, fill:'none', stroke:col, 'stroke-width':9,'stroke-linecap':'round','opacity':0.9}));
+  sts.forEach((nm,i)=>{
+    const cur = nm===state.curStation, isJ = (i===0);
+    svg.appendChild(svgEl('circle',{cx:xOf(i).toFixed(1), cy:yLine, r:cur?8:5,
+      fill:cur?'#fff':(isJ?col:'#16243f'), stroke:cur?col:'#6f8cc0', 'stroke-width':cur?4:2.5}));
+    const t=svgEl('text',{x:xOf(i).toFixed(1), y:yLine+20, 'text-anchor':'middle', 'font-size':cur?12:10, 'font-weight':cur?800:700,
+      fill:cur?'#fff':'#dbe6fb', stroke:'#0b1730','stroke-width':2.4,'paint-order':'stroke','stroke-linejoin':'round'});
+    t.textContent=nm; svg.appendChild(t);
+  });
+  const idxOf={}; sts.forEach((nm,i)=>idxOf[nm]=i);
+  const seen={};
+  list.forEach(t=>{
+    const cur=normStn(t.statnNm); const i=idxOf[cur];
+    if(i==null || i===0) return;   // 분기역(0) 열차는 본선에서 표시
+    const up=(t.updnLine==='0'), sel=String(t.trainNo)===String(state.trainNo);
+    const key=`${i}_${t.updnLine}`, k=seen[key]=(seen[key]||0); seen[key]++;
+    const x=xOf(i), y= up ? (yLine-20-k*20) : (yLine+34+k*20);
+    const moveDir = up ? 'left' : 'right';
+    const g=svgEl('g',{'data-train':t.trainNo, transform:`translate(${x.toFixed(1)}, ${y.toFixed(1)})`});
+    g.style.cursor='pointer'; g.addEventListener('click',()=>selectTrain(t));
+    let textCol='#fff';
+    if(sel) textCol='#222';
+    else { const r=parseInt(col.substr(1,2),16)||0, gr=parseInt(col.substr(3,2),16)||0, b=parseInt(col.substr(5,2),16)||0; textCol=((r*299+gr*587+b*114)/1000>=140)?'#111':'#fff'; }
+    buildTrainPin(g, String(t.trainNo), moveDir, col, textCol, sel, false);
+    const title=svgEl('title'); title.textContent=`${t.trainNo}열차 · ${normStn(t.statnTnm)}행 · 현재 ${cur}`; g.appendChild(title);
+    svg.appendChild(g);
+  });
+  map.appendChild(svg);
+}
+
 // 마우스 올리면 '즉시' 뜨는 커스텀 툴팁(네이티브 <title> 지연 제거용)
 let _pinTipEl=null;
 function _ensurePinTip(){
@@ -1341,10 +1384,16 @@ function renderTrainMap(list, targetMapId = 'lineMap', isExitPicker = false){
   });
 
   map.appendChild(svg);
+
+  // 지선(분기) 스트립 — 본선 아래 별도 표시(라인맵 전용, 본선 렌더 무영향)
+  const branches = (targetMapId==='lineMap' && !approx) ? LINE_BRANCHES[state.line] : null;
+  if(branches) branches.forEach(br=>buildBranchStrip(map, br, list, col, W));
+
   wrap.classList.remove('hide');
   const hint=document.getElementById('mapHint');
   if(hint) hint.textContent = (isLoop?'⬭ 2호선 순환선(안쪽:내선/바깥쪽:외선)':'배치: 상행(위)·하행(아래)')+' · '
-    +(approx?'운행 중인 역만 표시':'🔵상행 · 🔴하행')+' · 열차 탭 시 자동 선택 · 크기 조절 손잡이';
+    +(approx?'운행 중인 역만 표시':'🔵상행 · 🔴하행')+' · 열차 탭 시 자동 선택 · 크기 조절 손잡이'
+    +(branches?` · ↳ 지선(${branches.map(b=>b.name).join('·')})은 아래에 표시`:'');
 }
 
 function renderCtx(){
@@ -2022,6 +2071,18 @@ Object.assign(STATION_ORDER, {
   // GTX-A 실제 운행 순서(운정중앙 ↔ 동탄). 역명 매칭은 끝의 "역"을 떼므로 "서울역"은 "서울"로 표기.
   'GTX-A': ["운정중앙","킨텍스","대곡","연신내","서울","수서","성남","구성","동탄"],
 });
+
+// 지선(분기) — 실시간 API statnId로 검증한 노선만 등록. 첫 역=본선 분기역(연결점).
+// (1호선 경부선 등은 데이터 완전 검증이 어려워 제외)
+const LINE_BRANCHES = {
+  '2호선': [
+    { name:'성수지선', stations:["성수","용답","신답","용두","신설동"] },
+    { name:'신정지선', stations:["신도림","도림천","양천구청","신정네거리","까치산"] }
+  ],
+  '5호선': [
+    { name:'마천지선', stations:["강동","둔촌동","올림픽공원","방이","오금","개롱","거여","마천"] }
+  ]
+};
 
 let _stations=null, _myPos=null, _arriveStn=null, _arriveTimer=null;
 

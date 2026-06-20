@@ -866,8 +866,10 @@ async function loadTrains(silent = false){
 
   let list=[]; let errored=false;
   try{
+    const stationsP = loadStations();   // 환승역 표기용 stations.json을 열차 위치와 병렬 로드(첫 렌더부터 환승역 표시 보장)
     list = await fetchTrainPosition(state.line);
-    
+    await stationsP;                     // 라인맵 렌더 전 _stations 준비 완료 보장
+
     // 빈 데이터 제거 + 같은 열차번호 중복(API 페이지 겹침 등) 제거
     list = list.filter(t => t.trainNo);
     (function(){ const seen=new Set(); list = list.filter(t=>{ const k=String(t.trainNo); if(seen.has(k)) return false; seen.add(k); return true; }); })();
